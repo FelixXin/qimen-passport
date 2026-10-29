@@ -4,6 +4,12 @@
 
 面向 **FoloToy AI Passport（ESP32-C3、240×320 屏幕、8MB Flash、无 PSRAM）** 的独立离线奇门应用。无需账号、云端解盘或付费接口。复用 FoloToy MIT 板级驱动与已在本地验证的奇门实现；不包含背单词、词书上传、个人工牌、姓名头像或预设私人网络。
 
+![封面示意图](assets/images/qimen-passport-cover.png)
+
+封面为插画示意，不是实拍或精确屏幕截图。
+
+![实际界面渲染预览](assets/images/seven-categories.png)
+
 ## 功能
 
 - 北京时间 UTC+8，支持公历 2024—2099 年；四柱及盘面保持起盘时刻快照。

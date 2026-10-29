@@ -4,6 +4,12 @@
 
 An independent offline Qimen application for the **FoloToy AI Passport, ESP32-C3, 240×320 display, 8 MB Flash, no PSRAM**. No account, cloud interpretation or paid API is required. Derived from the FoloToy MIT board-support baseline and the locally tested Qimen implementation. It contains no vocabulary reader, book upload, personal badge, owner profile or preconfigured private network.
 
+![Cover illustration](assets/images/qimen-passport-cover.png)
+
+Cover illustration; not a photograph or exact screen capture.
+
+![Actual native UI preview](assets/images/seven-categories.png)
+
 ## Features
 
 - Beijing time (UTC+8), supported civil years 2024–2099; frozen four-pillar/hour chart snapshots.
