@@ -16,3 +16,5 @@ Full: 2817184 bytes; SHA-256 `d19468a73f5eda4d04de8356e777c6f88fbf678eb39a28ba03
 App: 2751648 bytes; SHA-256 `8e5fe90f265fced6ff8c91251b31d9c2e150669e0b428d50c45feeecc3d635d4`.
 
 Source: https://github.com/FelixXin/qimen-passport/tree/v0.4.1 .
+
+官方社区作品 1758／修订 4093：0.4.1 已提交，待审核。服务器回读的完整固件校验值与上述产物一致；审核通过前保留现有公开版。
