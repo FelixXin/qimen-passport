@@ -26,3 +26,6 @@ void qimen_cover_abort(qimen_cover_t *cover);
 bool qimen_cover_reset(qimen_cover_t *cover);
 size_t qimen_cover_offset(const qimen_cover_t *cover);
 bool qimen_cover_name_valid(const char *name);
+
+/* Built-in styles 0..3; 4 selects the retained uploaded image. */
+const char *qimen_cover_style_name(unsigned style);

@@ -12,16 +12,23 @@ Cover illustration; not a photograph or exact screen capture.
 
 ## UI preview
 
-![0.3.0 native rendering](assets/images/settings-0.3.0.png)
+![Actual 0.4.1 cover rendering](assets/images/covers-0.4.1.png)
 
 [Phone webpage preview](assets/images/web-mobile-0.3.0.png). These are software-rendered previews.
 
+## Version 0.4.1
+
+- Settings → Cast at time accepts civil dates from 1900 through 2099. Up/Down edits the field; holding a year key repeats ten-year steps. OK advances and casts after minutes. Hold OK cancels. This never changes the wall clock. The phone Date & time tab has the same operation.
+- Historical dates use the proleptic Gregorian calendar and fixed UTC+8, with no historical daylight-saving or true-solar-time adjustment. Real clock synchronization remains restricted to 2024–2099.
+- Choose Dark Taiji, Paper Taiji, Clock, Name card or the retained uploaded image, on the device or webpage. Names/styles/images persist; switching to a built-in style keeps the upload.
+- Semantic render keys skip unchanged UI updates. Article text is only regenerated when content changes; read-only queries avoid redraw, and battery reads are limited to every 30 seconds. Host CPU benchmarks do not establish physical display frame rate. No partition change.
+
 ## Features
 
-Source revision 0.3.1 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
+Source revision 0.4.1 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
 
 
-- Beijing time (UTC+8), supported civil years 2024–2099; frozen four-pillar/hour chart snapshots.
+- Beijing time (UTC+8), supported civil years 1900–2099; frozen four-pillar/hour chart snapshots.
 - Nine palaces, heaven/earth/hidden stems, stars, doors, gods, chiefs, void and travelling horse.
 - Previous/next two-hour charts, preserving minutes/seconds and recomputing date/term boundaries.
 - Palace detail with growth stages, month/day/hour five-element strengths and colored tomb/punishment/forced-door states.
@@ -33,7 +40,7 @@ Source revision 0.3.1 adds a reusable Taiji cover, a user-configurable name, opt
 
 | Screen | Operation |
 | --- | --- |
-| Grid | Up/down: select palace or Previous/Next; OK: activate; long up/down: adjacent chart; double OK: current chart |
+| Grid | Up/down: select palace or Previous/Next; OK: activate; long up/down: adjacent chart; double Down: next chart; double OK: current chart |
 | Grid | Long OK: settings; double Up: cover standby |
 | Palace detail | Down or OK: symbol articles; Up or long OK: grid |
 | Symbol article | Up/down: one text line; one additional Down at the end: next article; Up at the top: previous article's end |
@@ -95,3 +102,13 @@ Version 0.2.0 is a public preview release. Build and host/native UI tests passed
 The chart convention follows recorded OpenFate default four-pillar/hour observations; 12 chart fixtures and 516 calendar samples plus multi-year invariants are tested. This is not a claim of universal equivalence across schools or every website input. Month/day/hour strengths use each frozen pillar's branch as a five-element reference, not numeric energy scores. Symbol descriptions are learning notes, not automated predictions.
 
 See [architecture](docs/ARCHITECTURE.md), [sources and licenses](docs/SOURCES.md), and [local release checklist](docs/RELEASE.md).
+
+### 0.4.1 cover input fix
+
+Cover selection now moves on each physical Up/Down press; deferred single/double click reports do not repeat or swallow movement. Cover title, image and clock remain; the English cover eyebrow is removed from device and web preview.
+
+The wake guard now expires before recording a new press, so returning from cover preview cannot trap subsequent physical keys.
+
+## 0.4.1 validation
+
+Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included. See [release notes](docs/RELEASE.md) for artifact checksums. The community 0.3.1 submission is still pending review; 0.4.1 has not replaced it.

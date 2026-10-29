@@ -47,6 +47,13 @@ bool reader_local_parse(const char *line, reader_local_command_t *c) {
         *p = 0; fields[count++] = p + 1;
     }
     memset(c, 0, sizeof(*c)); uint64_t n;
+    if(!strcmp(fields[0],"CASTAT")&&count==2){
+        const char *digits=fields[1];bool negative=*digits=='-';if(negative)digits++;
+        if(!number(digits,negative?UINT64_C(2209017600):UINT64_C(4102415999),&n))return false;
+        c->epoch=negative?-(int64_t)n:(int64_t)n;c->op=LOCAL_CAST_AT;return true;
+    }
+    if(!strcmp(fields[0],"STYLE")&&count==2){if(!number(fields[1],4,&n))return false;c->op=LOCAL_STYLE;c->number=(uint32_t)n;return true;}
+    if(!strcmp(fields[0],"STYLEINFO")&&count==1){c->op=LOCAL_STYLE_INFO;return true;}
     if (!strcmp(fields[0], "COVERINFO") && count==1) {c->op=LOCAL_COVER_INFO;return true;}
     if (!strcmp(fields[0], "COVERRESET") && count==1) {c->op=LOCAL_COVER_RESET;return true;}
     if (!strcmp(fields[0], "NAME") && count==2) {

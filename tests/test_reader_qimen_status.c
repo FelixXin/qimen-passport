@@ -227,7 +227,7 @@ static void adjacent_charts(void) {
     assert(!reader_qimen_step(&q,0)&&!memcmp(&q,&original,sizeof(q)));
     assert(reader_qimen_cast(1792681297LL,&q));
     assert(reader_qimen_step(&q,1)&&q.day==23&&q.hour==1&&q.minute==1&&q.second==37);
-    assert(reader_qimen_cast(1704038400LL,&q));original=q;
+    assert(reader_qimen_cast(-2209017600LL,&q));original=q;
     assert(!reader_qimen_step(&q,-1)&&!memcmp(&q,&original,sizeof(q)));
     assert(reader_qimen_step(&q,1));
     assert(reader_qimen_cast(4102415999LL,&q));original=q;

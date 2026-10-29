@@ -13,3 +13,9 @@ Original mixed-app sources, managed dependencies, build logs and installed hardw
 ## Cover storage and concurrency
 
 `qimen_cover` is a portable dual-bank RGB565 store with generation, length, payload CRC and header CRC. The header is committed last; reset creates a tombstone. `qimen_cover_store` adapts the partition, name NVS, memory mapping and mutex. Rendering acknowledges the current bank before the previous bank may be erased. Upload uses a 1 KiB buffer, with no full-image heap decoding. Image GET/POST and command routes share management-key authorization; name writes pass through the application queue.
+
+## Rendering and historical charts
+
+`qimen_render` creates a zero-filled semantic key, excluding pointers, uninitialized padding and undisplayed seconds. Page/focus/chart epoch/style/name and visible radio-state changes invalidate it. Unchanged views return immediately, and article text rebuilds only on page/palace/symbol/chart changes. Display state is checked once per second; battery bus reads are limited to 30 seconds and input polling to 10ms.
+
+CASTAT/A_CAST_TIME validates a temporary chart before replacing the snapshot and never calls clock setters. TIME/SNTP still calibrates the wall clock. Year auto-repeat is confined to the historical editor and stops on release or departure. Date boundaries use fixed UTC+8.

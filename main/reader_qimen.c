@@ -31,6 +31,7 @@ static bool leap(unsigned y) { return y%4 == 0 && (y%100 != 0 || y%400 == 0); }
 static void civil(reader_qimen_t *c, int64_t days, unsigned seconds) {
     c->year = 1970;
     while (days >= (leap(c->year) ? 366 : 365)) { days -= leap(c->year) ? 366 : 365; c->year++; }
+    while(days<0){c->year--;days+=leap(c->year)?366:365;}
     static const unsigned lengths[] = {31,28,31,30,31,30,31,31,30,31,30,31};
     c->month = 1;
     while (days >= (int64_t)(lengths[c->month-1] + (c->month == 2 && leap(c->year)))) {
@@ -62,15 +63,16 @@ bool reader_qimen_cast(int64_t epoch, reader_qimen_t *c) {
     if (!c) return false;
     memset(c, 0, sizeof(*c));
     /* Civil date range in UTC+8. Guard before addition to prevent overflow. */
-    if (epoch < 1704038400LL || epoch >= 4102416000LL) return false;
-    int64_t local = epoch + 28800, days = local/86400;
-    civil(c, days, (unsigned)(local%86400));
-    unsigned y = c->year - 2023;
+    if (epoch < -2209017600LL || epoch >= 4102416000LL) return false;
+    int64_t local=epoch+28800,days=local/86400,remainder=local%86400;
+    if(remainder<0){remainder+=86400;days--;}
+    civil(c,days,(unsigned)remainder);
+    unsigned y = c->year - 1899;
     int term = 23;
     for (unsigned i = 0; i < 24; i++) if (epoch >= solar_terms[y][i]) term = (int)i; else break;
     c->term = (uint8_t)term;
     unsigned year = c->year;
-    if (days < ((int64_t)solar_terms[y][2]+28800)/86400) year--;
+    if (days < ((solar_terms[y][2]+28800)>=0?(solar_terms[y][2]+28800)/86400:((solar_terms[y][2]+28800)-86399)/86400)) year--;
     c->pillars[0] = (uint8_t)((year-4)%60);
     unsigned exact_year = epoch < solar_terms[y][2] ? c->year-1 : c->year;
     int jie = -1;

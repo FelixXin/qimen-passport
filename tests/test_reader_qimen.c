@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     reader_qimen_t c;
     assert(!reader_qimen_cast(INT64_MAX,&c) && !c.valid);
     assert(!reader_qimen_cast(INT64_MIN,&c) && !c.valid);
-    assert(!reader_qimen_cast(1704038399LL,&c));
+    assert(!reader_qimen_cast(-2209017601LL,&c));
     assert(reader_qimen_cast(1704038400LL,&c));
     assert(reader_qimen_cast(4102415999LL,&c));
     assert(!reader_qimen_cast(4102416000LL,&c));

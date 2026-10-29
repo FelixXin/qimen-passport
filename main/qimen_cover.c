@@ -62,3 +62,8 @@ bool qimen_cover_name_valid(const char *name){
  }
  return true;
 }
+
+const char *qimen_cover_style_name(unsigned style){
+ static const char *names[]={"墨色太极","浅色太极","大字时钟","简洁名片","自定义图像"};
+ return style<5?names[style]:names[0];
+}

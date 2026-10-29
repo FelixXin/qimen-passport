@@ -15,4 +15,8 @@ int main(void){reader_local_command_t c;reader_local_frame_t f={0};
  assert(reader_local_parse("NAME\t",&c)&&c.op==LOCAL_NAME);
  assert(!reader_local_parse("NAME\t00",&c));assert(!reader_local_parse("NAME\tc0af",&c));
  assert(reader_local_parse("COVERINFO",&c)&&c.op==LOCAL_COVER_INFO);assert(reader_local_parse("COVERRESET",&c)&&c.op==LOCAL_COVER_RESET);
+ assert(reader_local_parse("CASTAT\t-2209017600",&c)&&c.op==LOCAL_CAST_AT&&c.epoch==-2209017600LL);
+ assert(reader_local_parse("CASTAT\t0",&c)&&c.epoch==0);assert(reader_local_parse("CASTAT\t4102415999",&c));
+ assert(!reader_local_parse("CASTAT\t-2209017601",&c));assert(!reader_local_parse("CASTAT\t4102416000",&c));assert(!reader_local_parse("CASTAT\t--1",&c));assert(!reader_local_parse("CASTAT\t+1",&c));
+ assert(reader_local_parse("STYLE\t4",&c)&&c.op==LOCAL_STYLE);assert(!reader_local_parse("STYLE\t5",&c));assert(reader_local_parse("STYLEINFO",&c));
  puts("Protocol: time/numeric/credential/framing bounds, removed private operations PASS");}

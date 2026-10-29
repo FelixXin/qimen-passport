@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
-/* OpenFate's observed default: 四柱 + 时家, Beijing time, 2024–2099.
+/* OpenFate's observed default: 四柱 + 时家, Beijing time, 1900–2099.
  * A cast is a snapshot. No network or LVGL dependency. Arrays use palace 1..9. */
 typedef struct {
     bool valid, yin;

@@ -16,3 +16,4 @@ void qimen_ui_create(void);
 void qimen_ui_render(const qimen_view_t *view);
 bool qimen_ui_scroll(int direction);
 bool qimen_ui_name_supported(const char *name);
+unsigned qimen_ui_updates(void);

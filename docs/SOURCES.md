@@ -9,3 +9,5 @@
 - Symbol summaries originate in the prior local implementation, informed by user-provided learning material. Original private course notes/slides, images, identifiable examples and personal directories are excluded. On 2026-10-29 the project owner explicitly confirmed that the included summaries may be publicly shared. That confirmation applies to these summaries only; the original private course files are not distributed.
 
 No original mixed-app binary, owner badge/avatar, Wi-Fi password, device serial, raw USB log or personal vault file is included in source. Local build artifacts require review before upload; source-only checks do not sanitize arbitrary device flash dumps.
+
+For the corrected 0.4.0 calendar source hash and historical range, see assets/calendar/README.md. The pinned npm 1.7.7 and Git blob are byte-identical; tools/vendor/LICENSE.lunar-javascript.txt retains MIT terms.

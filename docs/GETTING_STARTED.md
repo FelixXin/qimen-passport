@@ -1,12 +1,12 @@
-# Qimen Passport 0.3.0 — Getting started
+# Qimen Passport 0.4.1 — Getting started
 
-This is a public preview. Firmware builds, host tests and native desktop rendering passed. This standalone revision has not been accepted on physical hardware; wireless behavior, first installation and power use still need device testing. The cover is an illustration; actual rendered UI previews are included in the repository.
+Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included.
 
 ## First use
-The device starts in Qimen. No account, internet service or wordbook is required. Charts use Beijing time (UTC+8), with dates from 2024 to 2099. Hold the right-side OK button to open settings and choose local time. Up increases and Down decreases the selected field. OK advances through year, month, day, hour and minute, then saves. Hold OK to cancel. Cast a current chart after saving. Time must be set again after power is disconnected.
+The device starts in Qimen. No account, internet service or wordbook is required. Charts use Beijing time (UTC+8), with chart dates from 1900 to 2099 (current-clock synchronization remains 2024–2099). Hold the right-side OK button to open settings and choose local time. Up increases and Down decreases the selected field. OK advances through year, month, day, hour and minute, then saves. Hold OK to cancel. Cast a current chart after saving. Time must be set again after power is disconnected.
 
 ## Charts and meanings
-On the grid, Up/Down selects a palace or the previous/next chart control. OK opens details or changes the chart. Hold Up/Down to move backward/forward by two hours. Double-press OK to cast the current time. The displayed pillars and date belong to the chart snapshot; synchronizing the clock does not silently replace it.
+On the grid, Up/Down selects a palace or the previous/next chart control. OK opens details or changes the chart. Hold Up/Down to move backward/forward by two hours. Double-press Down for the next chart. Double-press OK to cast the current time. The displayed pillars and date belong to the chart snapshot; synchronizing the clock does not silently replace it.
 
 Palace details include stems, door, star and deity, twelve growth stages, month/day/hour element strengths, and tomb, punishment, door pressure, void and horse markers. Down or OK opens symbol meanings. Up or hold OK returns to the grid.
 
@@ -27,4 +27,10 @@ For a first installation, use the verified full merged image at offset 0x0. It m
 
 ## Cover and name
 
-Settings → Cover opens cover information; OK previews the default Taiji design. In the phone webpage, save a name, choose and crop/zoom an image, upload it, or restore Taiji. Name and image survive power loss. Names allow up to eight supported characters; an empty name uses the application title. This revision adds image storage, so an existing-device update must review and update the partition table with a recovery backup.
+Settings → Cover lets Up/Down select a style; OK saves and previews it. In the phone webpage, save a name, choose and crop/zoom an image, upload it, or restore Taiji. Name and image survive power loss. Names allow up to eight supported characters; an empty name uses the application title. Updates from 0.2.0 require the new partition table and a recovery backup. For 0.3.x/0.4.x, an application-only update is possible after verifying the unchanged partition table.
+
+## Historical charts and styles
+
+Hold OK → Cast at time. Enter year/month/day/hour/minute in fixed Beijing time, from 1900-01-01 00:00 through 2099-12-31 23:59. Hold a year key for repeated ten-year steps; OK advances and finally casts. Hold OK cancels. The wall clock is unchanged, and double OK still casts the current time. Adjacent-chart navigation stops safely at range limits.
+
+Settings → Cover lets Up/Down choose five styles; OK saves and previews. Upload a custom image first. Selecting built-ins retains it. The webpage supports Apply style and Cast at selected time; the latter never sends a clock-sync command.
