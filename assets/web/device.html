@@ -1,0 +1,18 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>奇门设置 · Qimen Passport</title>
+<style>body{font:16px system-ui;background:#f6f4ed;color:#252621;max-width:540px;margin:32px auto;padding:0 20px}section{border-top:1px solid #d4d2c9;padding:18px 0}input,button{font:inherit;padding:10px;box-sizing:border-box;max-width:100%;margin:4px 0}input{width:100%}button{cursor:pointer}#status{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#74746c}</style>
+<h1>奇门设置</h1><p>Qimen Passport · 本地设备管理</p>
+<section><label>管理码（设备 Wi-Fi 页面）<input id="key" maxlength="8" autocomplete="off"></label><button id="connect">连接设备</button></section>
+<section><h2>时间</h2><p id="clock">尚未连接</p><button id="sync">使用手机当前时间校准</button><button id="cast">按当前时间起盘</button><small>排盘使用北京时间。页面在前台时每 30 秒尝试校时。</small></section>
+<section><h2>连接外部 Wi-Fi</h2><label>网络名称<input id="ssid" maxlength="32" autocomplete="off"></label><label>密码<input id="password" type="password" autocomplete="new-password"></label><button id="wifi">连接并保存</button><p><small>连接成功后才保存凭据；失败保留上一次配置。仅支持 2.4GHz 网络。</small></p></section>
+<section><button id="refresh">刷新状态与资源</button><p id="status" role="status"></p></section>
+<script>
+'use strict';const $=id=>document.getElementById(id);let idle=true,authorized=false;
+const hex=s=>Array.from(new TextEncoder().encode(s),x=>x.toString(16).padStart(2,'0')).join('');
+async function command(line){const key=$('key').value.trim();if(!/^[0-9a-f]{8}$/i.test(key))throw Error('请填写设备显示的八位管理码');const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);let r;try{r=await fetch('/api/command',{method:'POST',headers:{'X-Qimen-Key':key},body:line,signal:controller.signal});}finally{clearTimeout(timer);}if(!r.ok)throw Error(await r.text());const text=(await r.text()).trim(),fields=text.split('\t');if(fields[0]!=='QIMEN'||fields[1]!=='OK')throw Error(text);return fields;}
+async function sync(){await command('TIME\t'+Math.floor(Date.now()/1000));const r=await command('GET');if(r.length!==4||Math.abs(Number(r[3])-Date.now()/1000)>4)throw Error('校时回读不一致，请重试');$('clock').textContent=new Date(Number(r[3])*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})+' 北京时间';}
+async function refresh(){const n=await command('NET'),s=await command('STATS');if(n.length!==10||s.length!==7)throw Error('设备协议版本不匹配');$('status').textContent=`Wi-Fi：${n[4]==='1'?'已连接':'未连接'}\n请求：${n[8]}\nIP：${n[9]}\n可用内存：${s[3]} 字节\n最大连续内存：${s[4]} 字节`;return n;}
+async function run(fn){if(!idle)return;idle=false;try{await fn();}catch(e){$('status').textContent=e.message;}finally{idle=true;}}
+$('connect').onclick=()=>run(async()=>{await command('HELLO');authorized=true;await sync();await refresh();});$('sync').onclick=()=>run(sync);$('refresh').onclick=()=>run(refresh);$('cast').onclick=()=>run(async()=>{await sync();await command('CAST');$('status').textContent='已按当前时间起盘';});
+$('wifi').onclick=()=>run(async()=>{const ssid=$('ssid').value,pw=$('password').value;if(!ssid||new TextEncoder().encode(ssid).length>32||new TextEncoder().encode(pw).length>64)throw Error('Wi-Fi 信息长度无效');const r=await command('WIFI\t'+hex(ssid)+'\t'+hex(pw));$('password').value='';if(r.length!==4||!Number(r[3]))throw Error('设备未接受请求');const request=r[3];for(let i=0;i<35;i++){await new Promise(resolve=>setTimeout(resolve,1000));const n=await refresh();if(n[7]!==request)throw Error('配置请求已改变，请重新检查');if(n[8]==='CONNECTED'){if(n[4]!=='1'||n[6]!=='1')throw Error('网络保存未完成');$('status').textContent='连接并保存成功';return;}if(n[8]==='FAILED')throw Error('连接失败，原配置保留');}throw Error('连接结果尚未确认，请刷新状态');});
+setInterval(()=>{if(authorized&&idle&&!document.hidden)run(sync);},30000);
+</script></html>
