@@ -18,7 +18,7 @@ Cover illustration; not a photograph or exact screen capture.
 
 ## Features
 
-Source revision 0.3.0 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
+Source revision 0.3.1 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
 
 
 - Beijing time (UTC+8), supported civil years 2024–2099; frozen four-pillar/hour chart snapshots.

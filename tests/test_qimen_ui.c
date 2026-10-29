@@ -12,6 +12,22 @@ static lv_obj_t *find(lv_obj_t *o,const char *text){if(lv_obj_check_type(o,&lv_l
 int main(int argc,char **argv){assert(argc==2);output_dir=argv[1];setbuf(stdout,NULL);lv_init();lv_display_t *d=lv_display_create(240,320);lv_display_set_color_format(d,LV_COLOR_FORMAT_RGB565);lv_display_set_buffers(d,buffer,NULL,sizeof(buffer),LV_DISPLAY_RENDER_MODE_PARTIAL);lv_display_set_flush_cb(d,flush);qimen_ui_create();qimen_navigation_t n;qimen_navigation_init(&n,0);reader_qimen_t q;assert(reader_qimen_cast(1792645200LL,&q));qimen_view_t v={.navigation=&n,.chart=&q,.battery=86,.notice="",.clock={.valid=true,.has_date=true,.year=2026,.month=10,.day=22,.hour=13,.minute=2}};
  assert(qimen_ui_name_supported("学易")&&qimen_ui_name_supported("QIMEN")&&!qimen_ui_name_supported("😀"));
  qimen_ui_render(&v);capture("grid");n.page=Q_DETAIL;qimen_ui_render(&v);capture("detail");
+ /* A page must restore its complete layout after visiting settings/help. */
+ n.page=Q_GRID;qimen_ui_render(&v);lv_obj_update_layout(lv_screen_active());
+ char caption[96];snprintf(caption,sizeof(caption),"%s遁%u局 · %s · %s",q.yin?"阴":"阳",q.ju,(const char*[]){"上元","中元","下元"}[q.yuan],reader_qimen_term(q.term));
+ lv_obj_t *chart_caption=find(lv_screen_active(),caption);assert(chart_caption);int caption_y=lv_obj_get_y(chart_caption);
+ const unsigned positions[]={4,9,2,3,5,7,8,1,6};
+ for(unsigned i=0;i<9;i++){char cell_text[512];reader_qimen_cell_text(&q,positions[i],n.palace==i,cell_text,sizeof(cell_text));lv_obj_t *cell=find(lv_screen_active(),cell_text);assert(cell);
+  const lv_font_t *font=lv_obj_get_style_text_font(cell,0);int lines=1;for(const char *t=cell_text;*t;t++)if(*t=='\n')lines++;
+  assert(lines*font->line_height+(lines-1)*lv_obj_get_style_text_line_space(cell,0)<=lv_obj_get_content_height(cell));
+ }
+ uint16_t initial_frame[240*320];capture("grid-baseline");memcpy(initial_frame,frame,sizeof(frame));
+ const qimen_page_t visits[]={Q_MENU,Q_WIFI,Q_BLE,Q_CLOCK,Q_HELP,Q_COVER,Q_BRIGHT};
+ for(unsigned k=0;k<sizeof(visits)/sizeof(visits[0]);k++){
+  n.page=visits[k];qimen_ui_render(&v);n.page=Q_GRID;qimen_ui_render(&v);lv_obj_update_layout(lv_screen_active());
+  assert(lv_obj_get_y(chart_caption)==caption_y);capture("grid-return");assert(!memcmp(initial_frame,frame,sizeof(frame)));
+ }
+ n.page=Q_DETAIL;qimen_ui_render(&v);capture("detail");
  char status[128];reader_qimen_summary_text(&q,4,status,sizeof(status));lv_obj_t *bar=find(lv_screen_active(),status);assert(bar&&!lv_obj_has_flag(bar,LV_OBJ_FLAG_HIDDEN));
  const unsigned grid[]={4,9,2,3,5,7,8,1,6};unsigned lines=0;
  for(unsigned palace=0;palace<9;palace++)for(unsigned symbol=0;symbol<7;symbol++){

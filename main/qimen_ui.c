@@ -29,7 +29,7 @@ void qimen_ui_create(void){
  card=lv_obj_create(body);lv_obj_remove_style_all(card);lv_obj_set_size(card,197,153);lv_obj_remove_flag(card,LV_OBJ_FLAG_SCROLLABLE);lv_obj_set_style_border_width(card,1,0);lv_obj_set_style_border_color(card,lv_color_hex(0xd4d2c9),0);
  static const int layout[QIMEN_CARD_COUNT][4]={{8,6,110,27},{36,46,90,27},{8,110,114,27},{8,49,24,18},{136,46,52,27},{136,110,52,27},{100,28,90,18},{100,92,90,18},{8,73,180,18},{8,134,180,18},{114,8,76,18},{74,8,42,18}};
  for(unsigned i=0;i<QIMEN_CARD_COUNT;i++){const int *p=layout[i];parts[i]=label(card,p[0],p[1],p[2],i>=QIMEN_CARD_HEAVEN_GROWTH||i==QIMEN_CARD_HIDDEN);lv_obj_set_height(parts[i],p[3]);lv_label_set_long_mode(parts[i],LV_LABEL_LONG_CLIP);lv_label_set_recolor(parts[i],true);if(i==QIMEN_CARD_HEAVEN_STRENGTH||i==QIMEN_CARD_EARTH_STRENGTH)lv_obj_set_style_text_align(parts[i],LV_TEXT_ALIGN_RIGHT,0);}
- for(unsigned i=0;i<9;i++){cells[i]=label(screen,16+(i%3)*70,110+(i/3)*53,68,true);lv_obj_set_height(cells[i],51);lv_label_set_recolor(cells[i],true);lv_obj_set_style_text_align(cells[i],LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_border_width(cells[i],1,0);lv_obj_set_style_border_color(cells[i],lv_color_hex(0xd4d2c9),0);lv_obj_set_style_bg_opa(cells[i],LV_OPA_COVER,0);}
+ for(unsigned i=0;i<9;i++){cells[i]=label(screen,16+(i%3)*70,110+(i/3)*53,68,true);lv_obj_set_height(cells[i],51);lv_obj_set_style_text_line_space(cells[i],-3,0);lv_label_set_recolor(cells[i],true);lv_obj_set_style_text_align(cells[i],LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_border_width(cells[i],1,0);lv_obj_set_style_border_color(cells[i],lv_color_hex(0xd4d2c9),0);lv_obj_set_style_bg_opa(cells[i],LV_OPA_COVER,0);}
  for(unsigned i=0;i<3;i++){
   if(i<2){markers[i]=lv_obj_create(screen);lv_obj_remove_style_all(markers[i]);lv_obj_set_size(markers[i],7,7);lv_obj_set_style_radius(markers[i],LV_RADIUS_CIRCLE,0);lv_obj_set_style_border_width(markers[i],1,0);lv_obj_remove_flag(markers[i],LV_OBJ_FLAG_SCROLLABLE);}
   else {markers[i]=label(screen,0,0,12,true);lv_label_set_text(markers[i],"马");}
@@ -102,6 +102,7 @@ void qimen_ui_render(const qimen_view_t *v){
  bool changed=last_page!=n->page||last_symbol!=n->symbol||last_palace!=n->palace||last_epoch!=q->epoch_utc||was_sleep!=n->sleep;
  show(title,!chart||symbol);show(date,chart&&!symbol);show(subtitle,!symbol);
  lv_obj_set_pos(title,20,symbol?5:18);lv_obj_set_style_text_font(title,&reader_font,0);
+ lv_obj_set_y(subtitle,83);
  lv_obj_set_y(rule,symbol?96:104);lv_obj_set_pos(body,20,symbol?104:110);
  for(unsigned i=0;i<QIMEN_SYMBOL_COUNT;i++){
   show(tabs[i],symbol);bool active=n->symbol==i;
@@ -128,7 +129,7 @@ show(summary,chart&&!symbol);show(body,!overview);show(card,detail);show(heading
     if(i<2)lv_obj_set_style_border_color(markers[i],lv_color_hex(selected?0xbac4ff:0x5e6aa0),0);
     else {lv_obj_set_style_text_color(markers[i],lv_color_hex(selected?0x42d6cb:0x007f79),0);}
     show(markers[i],true);}}
-   if(!v->notice[0]){if(v->clock.has_date)lv_label_set_text_fmt(footer,"现在%04u-%02u-%02u %02u:%02u",v->clock.year,v->clock.month,v->clock.day,v->clock.hour,v->clock.minute);else lv_label_set_text(footer,"长按确定：设置");}
+   if(!v->notice[0]){if(v->clock.has_date)lv_label_set_text_fmt(footer,"%04u-%02u-%02u %02u:%02u",v->clock.year,v->clock.month,v->clock.day,v->clock.hour,v->clock.minute);else lv_label_set_text(footer,"长按确定：设置");}
   }else if(detail){
    for(unsigned i=0;i<QIMEN_CARD_COUNT;i++){reader_qimen_card_text(q,p,(reader_qimen_card_field_t)i,text,sizeof(text));lv_label_set_text(parts[i],text);}lv_label_set_text(footer,"下键或确定：符号象义");
   }else{
