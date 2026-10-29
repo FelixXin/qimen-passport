@@ -75,7 +75,7 @@ For a fresh install, use the verified **merged full image at offset 0x0**. It ma
 
 ## Status and scope
 
-Version 0.2.0 is a public preview release. Build and host/native UI tests passed; this standalone version has not been validated on the physical device. It is not yet an approved community-market release. Build/host/native UI results and exact artifacts are recorded locally under `build/verification.json`. On-device acceptance of the original mixed 0.13.1 is historical evidence only; the standalone application needs its own hardware validation. BLE/Wi-Fi RF behavior, cold installation, screen brightness and power consumption must not be inferred from host tests.
+Version 0.2.0 is a public preview release. Build and host/native UI tests passed; this standalone version has not been validated on the physical device. It is not yet an approved community-market release. Build/host/native UI results and exact artifacts are recorded locally under `docs/RELEASE.md`. On-device acceptance of the original mixed 0.13.1 is historical evidence only; the standalone application needs its own hardware validation. BLE/Wi-Fi RF behavior, cold installation, screen brightness and power consumption must not be inferred from host tests.
 
 The chart convention follows recorded OpenFate default four-pillar/hour observations; 12 chart fixtures and 516 calendar samples plus multi-year invariants are tested. This is not a claim of universal equivalence across schools or every website input. Month/day/hour strengths use each frozen pillar's branch as a five-element reference, not numeric energy scores. Symbol descriptions are learning notes, not automated predictions.
 

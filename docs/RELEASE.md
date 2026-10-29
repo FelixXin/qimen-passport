@@ -1,12 +1,11 @@
-<p align="right"><strong>English</strong> · <a href="RELEASE.zh_CN.md">简体中文</a></p>
+# Release notes
 
-# Local release preparation
+Public source: https://github.com/FelixXin/qimen-passport . This standalone repository retains upstream MIT attribution, pinned origins and third-party notices. It contains reviewed source, tests, documentation and illustrations.
 
-1. Confirm a public app name, contributor account, short descriptions, symbol-summary sharing rights and representative screenshots.
-2. Create a real upstream-based fork/feature branch; this extracted folder has no Git history or remote and has not been committed/pushed. Review only intended source, tests, licenses and documentation. Do not copy build/, managed_components/, .agents/, private snapshots or previous mixed-app assets.
-3. Run the complete validation gate, inspect native screenshots, record exact full/app/ELF hashes. Do not transfer old mixed-app hardware acceptance to this version.
-4. With a separate explicit device/write-impact approval, test this standalone firmware: cold boot without wordbooks, full-date manual setting, calendar/palace/articles, scrolling/paging/back/wake, saved brightness/Wi-Fi, web phone-time readback, correct/incorrect network configuration and BLE window/cleanup. Measure radio memory and power separately if making claims.
-5. Prepare a reviewed public source URL, representative cover and verified merged full.bin. Publish to GitHub and the official AI Passport community only after explicit authorization. Validate the actual released artifact, not a later rebuild. Never upload local raw logs or ELF/MAP automatically.
-6. Optionally propose a text-only application archive to upstream's current plays/<username>/<app-name>/ convention after publication; confirm the current upstream instructions when doing so. The original hardware-test main is not a place to merge the entire application.
+Version 0.2.0 is a public preview, without standalone hardware acceptance. Firmware builds, host tests and native rendering passed; wireless behavior, first installation and standby power still require physical testing. Publication does not flash or reset the creator's device.
 
-Publishing actions are recorded separately; this checklist itself does not authorize future updates or flashing. Initial app version: 0.1.0. A full installation can replace old settings; older reader layouts need a separate compatible app-only update review.
+Install the full merged image at offset 0x0. SHA-256: `e3dcb57b5c4e95d61dcf7dd852d2638cba039e580259548cfe9ed09ab1b97e58`; size: 2,612,176 bytes. An application-only image is not a full installation image.
+
+Before another release, run `./tools/validate.sh`, verify the exact artifact and checksum, review licensing and privacy, inspect native UI output, and record hardware acceptance separately. Do not publish raw build logs, private data or credentials. Cover artwork is explicitly labeled as an illustration.
+
+Use the official publisher for community submission and obtain approval of the completed preview. Pending review is not publication; report the official receipt accurately. Later updates, flashing and upstream contributions are separate operations.
