@@ -111,7 +111,7 @@ The wake guard now expires before recording a new press, so returning from cover
 
 ## 0.4.1 validation
 
-Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included. See [release notes](docs/RELEASE.md) for artifact checksums. Community 0.4.1 is approved (revision 4093). The 0.5.0 update is being prepared for the same project 1758; submission status is recorded in the release notes.
+Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included. See [release notes](docs/RELEASE.md) for artifact checksums. Community 0.4.1 is approved (revision 4093). Version 0.5.0 is submitted to the same project 1758 and pending review as revision 4106.
 
 ## 0.5.0 deep sleep
 

@@ -14,4 +14,4 @@ Application: 2771856 bytes; SHA-256 `68c03ace91dc679ad778e8cf6fe433094549e38d68a
 
 Source: https://github.com/FelixXin/qimen-passport/tree/v0.5.0 .
 
-Community update: prepared for original project 1758; submission is not yet confirmed.
+Community project 1758 / revision 4106: 0.5.0 submitted and pending review. The server-reported full-image checksum matches the artifact above. Approved 0.4.1 remains public until this update is approved.
