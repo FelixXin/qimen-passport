@@ -484,6 +484,21 @@ fail:
     return e == ESP_OK ? ESP_FAIL : e;
 }
 
+esp_err_t bsp_audio_idle_sleep(void) {
+    if (s_initialized) return bsp_audio_sleep();
+    if (s_ctrl || s_tx || s_rx || s_codec || s_data) return ESP_ERR_INVALID_STATE;
+    esp_err_t e = bsp_i2c_init();
+    if (e != ESP_OK) return e;
+    s_ctrl = audio_codec_new_i2c_ctrl(&(audio_codec_i2c_cfg_t){
+        .port = BSP_I2C_PORT, .addr = BSP_I2C_ES8311_ADDR << 1,
+        .bus_handle = bsp_i2c_bus(),
+    });
+    if (!s_ctrl) return ESP_ERR_NO_MEM;
+    e = es8311_force_sleep();
+    int cleanup = audio_codec_delete_ctrl_if(s_ctrl);s_ctrl = NULL;
+    return e != ESP_OK ? e : cleanup == ESP_CODEC_DEV_OK ? ESP_OK : ESP_FAIL;
+}
+
 esp_err_t bsp_audio_sleep(void) {
     if (!s_initialized) return ESP_OK;
     if (s_sleeping) return s_sleep_result;

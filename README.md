@@ -25,7 +25,7 @@ Cover illustration; not a photograph or exact screen capture.
 
 ## Features
 
-Source revision 0.4.1 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
+Source revision 0.5.0 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. Community version 0.4.1 is approved; this source revision adds 0.5.0 deep sleep. Names and images are stored locally; no private identity is prefilled.
 
 
 - Beijing time (UTC+8), supported civil years 1900–2099; frozen four-pillar/hour chart snapshots.
@@ -40,7 +40,7 @@ Source revision 0.4.1 adds a reusable Taiji cover, a user-configurable name, opt
 
 | Screen | Operation |
 | --- | --- |
-| Grid | Up/down: select palace or Previous/Next; OK: activate; long up/down: adjacent chart; double Down: next chart; double OK: current chart |
+| Grid | Up/down: select palace or Previous/Next; OK: activate; long up/down: adjacent chart; double Down: next chart; double OK: deep sleep (Cast now is in settings) |
 | Grid | Long OK: settings; double Up: cover standby |
 | Palace detail | Down or OK: symbol articles; Up or long OK: grid |
 | Symbol article | Up/down: one text line; one additional Down at the end: next article; Up at the top: previous article's end |
@@ -97,7 +97,7 @@ For a fresh install, use the verified **merged full image at offset 0x0**. It ma
 
 ## Status and scope
 
-Version 0.2.0 is a public preview release. Build and host/native UI tests passed; this standalone version has not been validated on the physical device. It is not yet an approved community-market release. Build/host/native UI results and exact artifacts are recorded locally under `docs/RELEASE.md`. On-device acceptance of the original mixed 0.13.1 is historical evidence only; the standalone application needs its own hardware validation. BLE/Wi-Fi RF behavior, cold installation, screen brightness and power consumption must not be inferred from host tests.
+Current acceptance and unmeasured items are documented in [release notes](docs/RELEASE.md).
 
 The chart convention follows recorded OpenFate default four-pillar/hour observations; 12 chart fixtures and 516 calendar samples plus multi-year invariants are tested. This is not a claim of universal equivalence across schools or every website input. Month/day/hour strengths use each frozen pillar's branch as a five-element reference, not numeric energy scores. Symbol descriptions are learning notes, not automated predictions.
 
@@ -111,4 +111,13 @@ The wake guard now expires before recording a new press, so returning from cover
 
 ## 0.4.1 validation
 
-Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included. See [release notes](docs/RELEASE.md) for artifact checksums. The original community project 1758 now has 0.4.1 pending review (revision 4093); the public release remains 0.2.0 until approval.
+Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included. See [release notes](docs/RELEASE.md) for artifact checksums. Community 0.4.1 is approved (revision 4093). The 0.5.0 update is being prepared for the same project 1758; submission status is recorded in the release notes.
+
+## 0.5.0 deep sleep
+
+- Double-press right-side OK on an awake page to stop radios, wait for key release, switch off the display/backlight and peripherals, then enter deep sleep. Cast now is the first settings action; double-Up still opens the cover.
+- No application work, UI refresh, Wi-Fi/Bluetooth service or periodic wakeup runs during sleep. The internal RTC keeps time. Any right-side key wakes the device; initialization restores the page, frozen historical chart and clock including elapsed sleep time. The wake gesture is consumed.
+- Names, covers, wordbooks and network settings are retained; partitions are unchanged. Recovery snapshots live only in RTC RAM, avoiding a flash write per sleep cycle. Wi-Fi resumes according to its saved preference after waking; temporary BLE sessions must be reopened.
+- Failed radio shutdown leaves the device awake with a retry notice. A failure after terminal peripheral hand-off restarts with the saved clock and chart.
+- The dim cover remains display standby, distinct from deep sleep. The left hardware power button retains its existing hold-to-power behavior. Complete power loss also stops RTC timekeeping and requires a new time sync.
+- Sleep, key wake, continuing time and cover operation passed user acceptance on the original device. Standby current, battery life and long-duration clock drift remain unmeasured.

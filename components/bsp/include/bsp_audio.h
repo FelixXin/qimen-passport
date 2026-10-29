@@ -44,3 +44,7 @@ esp_err_t bsp_audio_read(void *pcm, size_t bytes);
 
 // 输出音量 0..100(%)。
 void bsp_audio_set_volume(uint8_t percent);
+
+// Control-only suspend for applications that never initialize audio. No I2S
+// channels or PCM buffers are allocated; the shared bus remains available.
+esp_err_t bsp_audio_idle_sleep(void);

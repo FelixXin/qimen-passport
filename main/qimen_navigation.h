@@ -4,7 +4,7 @@
 typedef enum {Q_GRID,Q_DETAIL,Q_SYMBOL,Q_MENU,Q_WIFI,Q_BLE,Q_CLOCK,Q_HELP,Q_COVER,Q_BRIGHT,Q_CAST_TIME} qimen_page_t;
 typedef enum {K_UP,K_DOWN,K_OK} qimen_key_t;
 typedef enum {E_PRESS,E_RELEASE,E_CLICK,E_DOUBLE,E_LONG} qimen_event_t;
-typedef enum {A_NONE,A_DRAW,A_CAST,A_PREV,A_NEXT,A_SCROLL_UP,A_SCROLL_DOWN,A_WIFI,A_BLE,A_TIME,A_PREF,A_WAKE,A_CAST_TIME,A_STYLE} qimen_action_t;
+typedef enum {A_NONE,A_DRAW,A_CAST,A_PREV,A_NEXT,A_SCROLL_UP,A_SCROLL_DOWN,A_WIFI,A_BLE,A_TIME,A_PREF,A_WAKE,A_CAST_TIME,A_STYLE,A_DEEP_SLEEP} qimen_action_t;
 typedef struct {
  qimen_page_t page;unsigned selected,palace,symbol,field,brightness;
  unsigned year,month,day,hour,minute,cover_cursor;

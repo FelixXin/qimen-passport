@@ -38,5 +38,13 @@ int main(void){
  assert(n.cover_cursor==1&&!n.wake_guard);
  qimen_navigation_key(&n,K_DOWN,E_RELEASE,2050000);
  assert(qimen_navigation_key(&n,K_DOWN,E_CLICK,2250000)==A_NONE);
+ /* Double OK sleeps from every active page, preserving double-Up cover behavior. */
+ for(unsigned p=Q_GRID;p<=Q_CAST_TIME;p++){
+  qimen_navigation_init(&n,0);n.page=(qimen_page_t)p;
+  assert(qimen_navigation_key(&n,K_OK,E_DOUBLE,1000000)==A_DEEP_SLEEP);
+  assert(n.page==(qimen_page_t)p&&!n.sleep);
+ }
+ qimen_navigation_init(&n,0);assert(qimen_navigation_key(&n,K_UP,E_DOUBLE,1000000)==A_DRAW&&n.sleep);
+ n.sleep=false;n.page=Q_MENU;n.selected=0;assert(click(&n,K_OK)==A_CAST&&n.page==Q_GRID);
  puts("Navigation: full-date conversion/leaps, 11 targets, seven tabs/articles, boundary/reverse, wake gesture PASS");
 }

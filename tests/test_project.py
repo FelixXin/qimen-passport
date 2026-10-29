@@ -7,6 +7,13 @@ class ProjectTests(unittest.TestCase):
    binary=str(Path(d)/'test')
    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-I'+str(ROOT/'main'),str(ROOT/'tests'/test)]+[str(ROOT/'main'/s) for s in sources]+['-o',binary],check=True)
    return subprocess.run([binary],capture_output=True,text=True,check=True).stdout
+ def test_sleep(self):self.compile('test_qimen_sleep.c',['qimen_sleep.c','qimen_navigation.c','reader_clock.c','reader_qimen.c'])
+ def test_power_adapter(self):
+  with tempfile.TemporaryDirectory() as d:
+   base=Path(d)
+   for name in ['sdkconfig.h','bsp_audio.h','bsp_battery.h','bsp_button.h','bsp_display.h','bsp_i2c.h','bsp_pins.h','esp_attr.h','esp_log.h','esp_sleep.h','esp_system.h','esp_timer.h']:
+    (base/name).write_text('#include "'+str(ROOT/'tests/power_stubs.h')+'"\n')
+   binary=str(base/'power');subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-I'+str(base),'-I'+str(ROOT/'main'),str(ROOT/'tests/test_qimen_power.c')]+[str(ROOT/'main'/x) for x in ['qimen_sleep.c','qimen_navigation.c','reader_clock.c','reader_qimen.c']]+['-o',binary],check=True);subprocess.run([binary],check=True)
  def test_cover(self):self.compile('test_qimen_cover.c',['qimen_cover.c'])
  def test_navigation(self):self.compile('test_qimen_navigation.c',['qimen_navigation.c'])
  def test_protocol(self):self.compile('test_qimen_protocol.c',['reader_local.c','reader_radio.c','qimen_cover.c'])

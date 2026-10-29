@@ -166,7 +166,7 @@ show(summary,chart&&!symbol&&(!overview||n->selected<9));show(body,!overview);sh
   lv_label_set_text(title,"奇门遁甲");lv_label_set_text(subtitle,"长按确定返回");lv_label_set_text(heading,"");lv_label_set_text(article,"");
   if(n->sleep){lv_label_set_text(title,"时钟");if(v->clock.valid)lv_label_set_text_fmt(heading,"%02u:%02u",v->clock.hour,v->clock.minute);else lv_label_set_text(heading,"--:--");if(v->clock.has_date)lv_label_set_text_fmt(article,"%04u-%02u-%02u",v->clock.year,v->clock.month,v->clock.day);lv_label_set_text(footer,"按右侧键返回");}
   else if(n->page<=Q_SYMBOL){lv_label_set_text(heading,"请先校时");lv_label_set_text(article,"长按确定打开设置\n本地设置完整日期\n或用 Wi-Fi 网页校时\n校时后确定起盘");}
-  else if(n->page==Q_HELP){lv_label_set_text(title,"按键说明");lv_obj_set_y(article,0);lv_obj_set_y(body,70);lv_obj_set_height(body,216);lv_label_set_text(article,"上下选择宫位\n确定查看详情\n长按上下切换前后局\n双击下键切下一局\n双击确定起当前盘\n详情进入七类象义\n正文上下逐行滚动\n读完再按下翻篇\n确定回分类选择\n长按确定逐级返回\n双击上键查看封面\n按键唤醒后返回\n断电后重新校时");lv_label_set_text(subtitle,"上/下滚动 · 长按确定返回");lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);}
+  else if(n->page==Q_HELP){lv_label_set_text(title,"按键说明");lv_obj_set_y(article,0);lv_obj_set_y(body,70);lv_obj_set_height(body,216);lv_label_set_text(article,"上下选择宫位\n确定查看详情\n长按上下切换前后局\n双击下键切下一局\n双击确定省电休眠\n详情进入七类象义\n正文上下逐行滚动\n读完再按下翻篇\n确定回分类选择\n长按确定逐级返回\n双击上键查看封面\n按键唤醒后返回\n断电后重新校时");lv_label_set_text(subtitle,"上/下滚动 · 长按确定返回");lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);}
   else {
    show(body,false);lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);lv_label_set_text(footer,v->notice[0]?v->notice:"长按确定返回");
    char text[96];

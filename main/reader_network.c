@@ -27,16 +27,17 @@ static esp_netif_t *ap_netif,*sta_netif;
 static esp_event_handler_instance_t wifi_handler,ip_handler;
 static bool wifi_registered,ip_registered,cleanup_pending;
 static TaskHandle_t worker_task;
+static bool sleep_requested,sleep_done,sleep_success;
 static unsigned retries;
 static uint32_t session_token,operation_token,operation_id,next_request;
 static wifi_config_t station;
 static char pending_ssid[33],pending_password[65],expected_ssid[33];
-enum {NET_DISABLE,NET_ENABLE,NET_RETRY,NET_CONFIGURE,NET_CONNECTED,NET_FORGET,NET_PREPARE_BLE,NET_RESUME_WEB,NET_RELEASE_BLE};
+enum {NET_DISABLE,NET_ENABLE,NET_RETRY,NET_CONFIGURE,NET_CONNECTED,NET_FORGET,NET_PREPARE_BLE,NET_RESUME_WEB,NET_RELEASE_BLE,NET_SLEEP};
 typedef struct {int kind;uint32_t token,request;char ssid[33],password[65];} network_work_t;
 typedef struct {uint32_t version;char ssid[33],password[64];} hotspot_config_t;
 extern const unsigned char web_start[] __asm__("_binary_device_html_start");
 extern const unsigned char web_end[] __asm__("_binary_device_html_end");
-static bool enqueue(network_work_t *work){return commands&&xQueueSend(commands,work,0)==pdTRUE;}
+static bool enqueue(network_work_t *work){portENTER_CRITICAL(&info_lock);bool blocked=sleep_requested&&work->kind!=NET_SLEEP;portEXIT_CRITICAL(&info_lock);return !blocked&&commands&&xQueueSend(commands,work,0)==pdTRUE;}
 static bool valid_session(uint32_t token){portENTER_CRITICAL(&info_lock);bool ok=!token||token==session_token;portEXIT_CRITICAL(&info_lock);return ok;}
 void reader_network_provision_session(uint32_t token){portENTER_CRITICAL(&info_lock);session_token=token;portEXIT_CRITICAL(&info_lock);}
 void reader_network_info(reader_network_info_t *out){portENTER_CRITICAL(&info_lock);*out=info;portEXIT_CRITICAL(&info_lock);}
@@ -286,6 +287,13 @@ static void connect_provisioned(network_work_t *work){
     if(err!=ESP_OK||esp_wifi_connect()!=ESP_OK)failure();
 }
 static void process_work(network_work_t *work) {
+        portENTER_CRITICAL(&info_lock);bool blocked=sleep_requested&&work->kind!=NET_SLEEP;portEXIT_CRITICAL(&info_lock);
+        if(blocked)return;
+        if(work->kind==NET_SLEEP){
+            clear_pending();reader_ble_close();bool ble_ok=reader_ble_shutdown();esp_err_t wifi_error=release_wifi();
+            portENTER_CRITICAL(&info_lock);sleep_success=ble_ok&&wifi_error==ESP_OK;sleep_done=true;portEXIT_CRITICAL(&info_lock);return;
+        }
+
         if(work->kind==NET_ENABLE || work->kind==NET_RESUME_WEB) {
             reader_ble_info_t bluetooth;reader_ble_info(&bluetooth);
             if(bluetooth.window || bluetooth.initialized || bluetooth.stopping) {
@@ -370,3 +378,11 @@ bool reader_network_resume_web(void) {network_work_t work={.kind=NET_RESUME_WEB}
 uint32_t reader_network_stack_free(void) {return worker_task?(uint32_t)uxTaskGetStackHighWaterMark(worker_task):0;}
 
 bool reader_network_release_ble(void) {network_work_t work={.kind=NET_RELEASE_BLE};return enqueue(&work);}
+
+bool reader_network_sleep_request(void){
+ portENTER_CRITICAL(&info_lock);if(sleep_requested){portEXIT_CRITICAL(&info_lock);return false;}sleep_requested=true;sleep_done=sleep_success=false;portEXIT_CRITICAL(&info_lock);
+ network_work_t work={.kind=NET_SLEEP};if(enqueue(&work))return true;
+ portENTER_CRITICAL(&info_lock);sleep_requested=false;portEXIT_CRITICAL(&info_lock);return false;
+}
+int reader_network_sleep_result(void){portENTER_CRITICAL(&info_lock);int result=!sleep_done?0:sleep_success?1:-1;portEXIT_CRITICAL(&info_lock);return result;}
+void reader_network_sleep_cancel(void){portENTER_CRITICAL(&info_lock);if(sleep_done){sleep_requested=false;sleep_done=sleep_success=false;}portEXIT_CRITICAL(&info_lock);}

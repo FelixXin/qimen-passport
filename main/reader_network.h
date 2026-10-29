@@ -20,3 +20,8 @@ bool reader_network_resume_web(void);
 uint32_t reader_network_stack_free(void);
 
 bool reader_network_release_ble(void);
+
+/* Exclusive worker-owned shutdown handshake. No NVS preferences are changed. */
+bool reader_network_sleep_request(void);
+int reader_network_sleep_result(void);
+void reader_network_sleep_cancel(void);

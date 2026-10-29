@@ -1,20 +1,17 @@
-# Qimen Passport 0.4.1
+# 0.5.0 changes since 0.4.1
+- Double-OK enters deep sleep: shut down the display, radios and peripherals, stop application work and retain internal timekeeping without periodic wakeups.
+- Any right-side key wakes the device and restores the page, frozen chart and elapsed clock, while consuming the wake gesture.
+- Double-Up still shows the cover; Cast now moves to the first settings action.
+- Wait for complete radio shutdown and key release; report preparation failures and recover after terminal peripheral failures.
+- Suspend unused audio circuitry and keep recovery state without per-sleep storage writes, preserving existing data and network settings.
+- Sleep, wake, continuing time and cover operation passed physical acceptance. Standby current and battery life remain unmeasured.
 
-- Cast a chart for any Beijing date from 1900 through 2099, on the device or phone webpage, without changing the current clock.
-- Choose Dark Taiji, Paper Taiji, Clock or Name card, or retain an uploaded custom cover and display name.
-- Skip redundant refresh work and improve palace selection; correct corner-palace highlighting on chart controls and add double-Down for the next chart.
-- Fix unresponsive physical keys after waking from cover preview; move cover selection on each physical press.
-- Remove the English cover eyebrow while retaining the name, image, date and time.
-- Includes persistent cover uploads, redesigned settings/web controls and chart layout fixes since 0.2.0.
+Install the full merged image at `0x0`. An application-only update at `0x10000` requires verification of the unchanged partition table. A first full installation may replace firmware/settings; back up first.
 
-Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included.
+Full image: 2837392 bytes; SHA-256 `1d2e6ed02b0f95c32d3914cafd79388024a30fd789f3a556f9368bb6d6538c67`.
 
-Install the full merged image at `0x0`. Use the application-only image at `0x10000` only after verifying the partition table. A first full installation may replace existing firmware/settings; back up first.
+Application: 2771856 bytes; SHA-256 `68c03ace91dc679ad778e8cf6fe433094549e38d68aca22e273db799f81dbc88`.
 
-Full: 2817184 bytes; SHA-256 `d19468a73f5eda4d04de8356e777c6f88fbf678eb39a28ba03781ae5f26c2449`.
+Source: https://github.com/FelixXin/qimen-passport/tree/v0.5.0 .
 
-App: 2751648 bytes; SHA-256 `8e5fe90f265fced6ff8c91251b31d9c2e150669e0b428d50c45feeecc3d635d4`.
-
-Source: https://github.com/FelixXin/qimen-passport/tree/v0.4.1 .
-
-Community project 1758 / revision 4093: 0.4.1 submitted and pending review. The server-reported full-image checksum matches the artifact above. The existing public release remains unchanged until approval.
+Community update: prepared for original project 1758; submission is not yet confirmed.

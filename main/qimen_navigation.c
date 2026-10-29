@@ -35,12 +35,12 @@ qimen_action_t qimen_navigation_key(qimen_navigation_t *n,qimen_key_t key,qimen_
  /* Cover selection responds to each physical press, not delayed click grouping. */
  if(n->page==Q_COVER&&event==E_PRESS&&key!=K_OK){n->cover_cursor=(n->cover_cursor+(key==K_UP?4:1))%5;return A_DRAW;}
  if(event==E_PRESS||event==E_RELEASE)return A_NONE;
+ if(event==E_DOUBLE&&key==K_OK)return A_DEEP_SLEEP;
  if(event==E_DOUBLE&&key==K_UP&&n->page==Q_GRID){n->sleep=true;return A_DRAW;}
  if(event==E_LONG&&key==K_OK){if(n->page==Q_GRID){n->page=Q_MENU;n->selected=0;return A_DRAW;}return back(n);}
  if(n->page==Q_GRID){
   if(event==E_DOUBLE&&key==K_DOWN)return A_NEXT;
   if(event==E_LONG&&key!=K_OK)return key==K_UP?A_PREV:A_NEXT;
-  if(event==E_DOUBLE&&key==K_OK)return n->selected==10?A_PREV:(n->selected==9?A_NEXT:A_CAST);
   if(event!=E_CLICK)return A_NONE;
   if(key==K_OK){if(n->selected>=9)return n->selected==10?A_PREV:A_NEXT;n->palace=n->selected;n->page=Q_DETAIL;return A_DRAW;}
   n->selected=(n->selected+(key==K_UP?10:1))%11;if(n->selected<9)n->palace=n->selected;return A_DRAW;

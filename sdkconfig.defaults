@@ -74,3 +74,6 @@ CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
 
 # Lossless LVGL glyph RLE preserves the complete 4-bpp Chinese inventory.
 CONFIG_LV_USE_FONT_COMPRESSED=y
+
+# gettimeofday continues on the RTC across deep sleep.
+CONFIG_LIBC_TIME_SYSCALL_USE_RTC_HRT=y

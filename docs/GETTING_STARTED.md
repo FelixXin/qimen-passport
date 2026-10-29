@@ -1,36 +1,35 @@
-# Qimen Passport 0.4.1 — Getting started
-
-Version 0.4.1 was installed on the original AI Passport and the user accepted cover selection, confirmation, wake-and-repeat behavior and removal of the English cover eyebrow. Flash integrity, USB version readback and time synchronization passed. The 1900/2099 chart limits and wall-clock isolation were checked on 0.4.0. Wireless connectivity, exhaustive historical-chart agreement, first full installation and power use are outside this acceptance. Cover artwork is an illustration; actual UI renders are also included.
+# Qimen Passport 0.5.0 — Getting started
 
 ## First use
-The device starts in Qimen. No account, internet service or wordbook is required. Charts use Beijing time (UTC+8), with chart dates from 1900 to 2099 (current-clock synchronization remains 2024–2099). Hold the right-side OK button to open settings and choose local time. Up increases and Down decreases the selected field. OK advances through year, month, day, hour and minute, then saves. Hold OK to cancel. Cast a current chart after saving. Time must be set again after power is disconnected.
+The device starts in Qimen. No account, internet service or wordbook is needed. Hold right-side OK, choose Date & time, then use Up/Down to adjust year, month, day, hour and minute. OK advances and finally saves; hold OK to cancel. Current-clock calibration supports 2024–2099. All charts use Beijing time, UTC+8. Choose Cast now, the first settings action, to cast the current clock time.
 
-## Charts and meanings
-On the grid, Up/Down selects a palace or the previous/next chart control. OK opens details or changes the chart. Hold Up/Down to move backward/forward by two hours. Double-press Down for the next chart. Double-press OK to cast the current time. The displayed pillars and date belong to the chart snapshot; synchronizing the clock does not silently replace it.
+## Charts and controls
+On the grid, Up/Down selects a palace or Previous/Next; OK opens details or changes the chart. Hold Up/Down to move backward/forward two hours. Double-Down advances one chart. Hold OK opens settings or returns one level. Pillars, dates and palace contents belong to the chart snapshot; synchronizing the clock does not silently replace it.
 
-Palace details include stems, door, star and deity, twelve growth stages, month/day/hour element strengths, and tomb, punishment, door pressure, void and horse markers. Down or OK opens symbol meanings. Up or hold OK returns to the grid.
+In details, Down or OK opens symbol meanings, and Up returns to the grid. The seven categories are Palace, Heaven stem, Earth stem, Hidden stem, Door, Star and Deity. Select with Up/Down and press OK to read. In an article, Up/Down scrolls one line; Down again at the end advances, while Up at the beginning opens the previous article's end. OK returns to categories; hold OK returns to details. Up at the first article's beginning returns to details; the last article does not loop. Meanings are study references, not automatic readings.
 
-The seven categories are Palace, Heaven stem, Earth stem, Hidden stem, Door, Star and Deity. Choose with Up/Down, then OK to read. In an article, Up/Down scrolls one line. Press Down once more at the end to advance to the next article; Up at the start opens the end of the previous article. OK returns to category selection. Hold OK returns to palace details. Up at the beginning of the first article returns to details; the last article does not loop. These are learning references, not automatic interpretations.
+## Deep sleep and wake
+Double-press right-side OK on an awake page, release the buttons and wait for radios, display and peripherals to shut down. During deep sleep there is no UI refresh, chart processing or Wi-Fi/Bluetooth service. Only internal timekeeping continues; no periodic wakeup is scheduled.
 
-## Phone webpage: time and Wi-Fi
-Hold OK, open Wi-Fi settings, and press OK to enable the hotspot. Its name is Qimen-Passport. The random password and eight-character management code appear on the device. Join it from your phone, open http://192.168.4.1 , enter the management code and synchronize phone time. Cast a new current chart if needed. The page attempts time synchronization every 30 seconds while visible; background operation is not guaranteed.
+Press any right-side key to wake and allow initialization to finish. The previous page, frozen chart and clock including elapsed sleep time are restored. The wake gesture does not activate a page action. Wi-Fi resumes according to its saved preference; a temporary Bluetooth window must be reopened. The left hardware power button retains its hold-to-power behavior. Complete power loss also stops timekeeping, so set or synchronize time again after switching on.
 
-The same page accepts an external 2.4 GHz Wi-Fi network name and password. Treat the matching request ID with CONNECTED and the corresponding IP as success. Receiving a request is not connection confirmation. Credentials are saved only after that connection succeeds. On failure, check the details and submit again, or keep using the hotspot. Use the local webpage only on trusted networks.
+Double-Up still opens the cover; the dim cover also appears after 60 seconds of inactivity. Cover standby differs from double-OK deep sleep. Double-OK no longer casts the current chart: use Cast now in settings instead.
 
-## Bluetooth time
-Hold OK, open Bluetooth time and enable the three-minute window. Use a client supporting custom BLE services: subscribe to notifications, send AUTH with the six-digit code on screen, then TIME with the phone's current UTC timestamp. See the repository protocol documentation for service identifiers and framing. System Bluetooth settings do not automatically send time or passwords. iPhone Safari does not provide this client; use the Wi-Fi webpage instead. No WeChat mini program or signed phone app is included.
+## Cast at a selected time
+Settings → Cast at time accepts Gregorian dates from 1900-01-01 00:00 through 2099-12-31 23:59. Up/Down edits fields; holding a year key repeatedly moves ten years. OK advances and finally casts; hold OK cancels. This does not change the wall clock. Adjacent-chart navigation stops at date limits without replacing the original chart. Historical dates use fixed UTC+8, without historical daylight-saving or true-solar-time adjustments.
 
-## Standby and installation
-Double-press Up for the dim clock. It also appears after 60 seconds of inactivity. The first right-side button press only wakes the screen.
+## Phone webpage, time and Wi-Fi
+Hold OK → Wi-Fi network → OK to enable it. The default hotspot is Qimen-Passport; its random password and eight-character management code appear on the device. Join it from your phone, open http://192.168.4.1 , enter the code and connect. Date & time offers phone-time synchronization and a separate selected-time cast. While visible, the page attempts time synchronization every 30 seconds; background operation is not guaranteed.
 
-For a first installation, use the verified full merged image at offset 0x0. It may replace existing firmware and settings. Do not use an application-only image as a full image. Preserving data when updating a mixed-version device requires a separate review; publishing this preview does not modify your device. Source, licensing and checksums are available in the repository and preview Release.
+On Network, enter an external 2.4 GHz Wi-Fi name and password. Success requires the matching request to show CONNECTED and an IP address; only then are credentials saved. Check details and retry after a failure, or continue using the device hotspot. The webpage is unavailable during deep sleep; reconnect and refresh after waking. Use local settings only on trusted networks.
 
 ## Cover and name
+Settings → Cover lets Up/Down choose Dark Taiji, Paper Taiji, Clock, Name card or Custom image. OK saves and previews; a right-side key wakes and returns. On the webpage's Cover tab, save up to eight supported name characters, or leave it empty for the app title. Choose, crop and zoom an image before uploading, or restore Taiji. Name, style and image survive power loss; choosing built-ins retains the upload, and failed uploads retain the previous image.
 
-Settings → Cover lets Up/Down select a style; OK saves and previews it. In the phone webpage, save a name, choose and crop/zoom an image, upload it, or restore Taiji. Name and image survive power loss. Names allow up to eight supported characters; an empty name uses the application title. Updates from 0.2.0 require the new partition table and a recovery backup. For 0.3.x/0.4.x, an application-only update is possible after verifying the unchanged partition table.
+## Bluetooth time
+Settings → Bluetooth time opens a three-minute window. Use a client supporting the custom service: subscribe to notifications, send AUTH with the six-digit screen code, then TIME with the phone's UTC timestamp. See repository protocol documentation. System Bluetooth settings do not send time/passwords automatically; iPhone Safari lacks this client, so use the Wi-Fi webpage. No WeChat mini program or signed phone app is included.
 
-## Historical charts and styles
+## Installation and validation
+Use the community full image for a first installation. It may replace firmware/settings, so back up first. An application-only image is not a full installation. A data-preserving update from 0.4.1 requires verification of the unchanged partition table and the repository instructions; updating from 0.2.0 also requires the new table. The author's local update did not erase names, networks or wordbooks.
 
-Hold OK → Cast at time. Enter year/month/day/hour/minute in fixed Beijing time, from 1900-01-01 00:00 through 2099-12-31 23:59. Hold a year key for repeated ten-year steps; OK advances and finally casts. Hold OK cancels. The wall clock is unchanged, and double OK still casts the current time. Adjacent-chart navigation stops safely at range limits.
-
-Settings → Cover lets Up/Down choose five styles; OK saves and previews. Upload a custom image first. Selecting built-ins retains it. The webpage supports Apply style and Cast at selected time; the latter never sends a clock-sync command.
+Version 0.5.0 passed physical acceptance for sleep, key wake, continuing time and cover operation, plus build, host fault and native UI checks. Standby current, battery life and long-duration clock drift are not measured; no specific endurance is claimed. Community cover artwork is an illustration; actual UI renders are included in the repository.

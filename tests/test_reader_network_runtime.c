@@ -61,7 +61,9 @@ bool qimen_cover_store_finish(void){assert(cover_received==QIMEN_COVER_BYTES);re
 void qimen_cover_store_abort(void){cover_aborted=true;}
 static bool bluetooth_active;
 void reader_ble_info(reader_ble_info_t *out) {memset(out,0,sizeof(*out));out->initialized=bluetooth_active;}
-bool reader_ble_shutdown(void) {return true;}
+static bool sleep_ble_failure;
+void reader_ble_close(void){bluetooth_active=false;}
+bool reader_ble_shutdown(void) {return !sleep_ble_failure;}
 bool reader_remote_submit(const char *line,char *reply_out,size_t capacity) {(void)line;(void)reply_out;(void)capacity;return false;}
 BaseType_t xQueueSend(QueueHandle_t q,const void *item,unsigned wait) {(void)q;(void)wait;queued=*(const network_work_t*)item;return pdTRUE;}
 void vTaskDelay(unsigned delay) {(void)delay;}
@@ -123,5 +125,16 @@ int main(void) {
     cover_fail_read=0;body_received=0;cover_finish_ok=false;assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"422 Unprocessable Content"));
     body_received=0;cover_finish_ok=true;assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"200 OK")&&!strcmp((char*)response_body,"QIMEN\tOK\tCOVER"));
     assert(cover_received==QIMEN_COVER_BYTES);assert(cover_image(&request)==ESP_OK&&!strcmp(response_status,"204 No Content"));cover_get_active=true;assert(cover_image(&request)==ESP_OK);
+    /* Completion must mean both radios and HTTP are gone, not just enabled=false. */
+    assert(release_wifi()==ESP_OK);reset();commands=(QueueHandle_t)1;
+    assert(enable_wifi(true)==ESP_OK);assert(reader_network_sleep_request());assert(!reader_network_enable(true));
+    assert(reader_network_sleep_result()==0);reader_network_sleep_cancel();assert(sleep_requested);
+    network_work_t old={.kind=NET_ENABLE};process_work(&old);assert(running);
+    network_work_t sleeping={.kind=NET_SLEEP};process_work(&sleeping);
+    assert(reader_network_sleep_result()==1&&!driver_live&&!running&&!http_live&&!live_netifs);
+    reader_network_sleep_cancel();assert(!sleep_requested);
+    assert(enable_wifi(true)==ESP_OK);fail_stop=true;assert(reader_network_sleep_request());process_work(&sleeping);
+    assert(reader_network_sleep_result()==-1&&driver_live);reader_network_sleep_cancel();fail_stop=false;assert(release_wifi()==ESP_OK);
+    sleep_ble_failure=true;assert(reader_network_sleep_request());process_work(&sleeping);assert(reader_network_sleep_result()==-1);reader_network_sleep_cancel();sleep_ble_failure=false;
     printf("Reader Wi-Fi: %u allocation/register/start/route fault points, cleanup retry and BLE/web cycle PASS\n",stages);
 }
