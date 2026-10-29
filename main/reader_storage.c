@@ -63,4 +63,3 @@ esp_err_t reader_storage_network_forget(void) {
     /* A committed tombstone must hide legacy keys, including after power loss. */
     return write_config(&empty);
 }
-
