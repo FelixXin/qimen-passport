@@ -7,8 +7,9 @@ class ProjectTests(unittest.TestCase):
    binary=str(Path(d)/'test')
    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-I'+str(ROOT/'main'),str(ROOT/'tests'/test)]+[str(ROOT/'main'/s) for s in sources]+['-o',binary],check=True)
    return subprocess.run([binary],capture_output=True,text=True,check=True).stdout
+ def test_cover(self):self.compile('test_qimen_cover.c',['qimen_cover.c'])
  def test_navigation(self):self.compile('test_qimen_navigation.c',['qimen_navigation.c'])
- def test_protocol(self):self.compile('test_qimen_protocol.c',['reader_local.c','reader_radio.c'])
+ def test_protocol(self):self.compile('test_qimen_protocol.c',['reader_local.c','reader_radio.c','qimen_cover.c'])
  def test_status_articles(self):self.compile('test_reader_qimen_status.c',['reader_qimen.c','reader_qimen_status.c','reader_qimen_text.c','reader_qimen_notes.c'])
  def test_clock(self):self.compile('test_reader_clock.c',['reader_clock.c'])
  def test_pairing(self):self.compile('test_reader_pairing.c',['reader_pairing.c'])
@@ -30,9 +31,10 @@ class ProjectTests(unittest.TestCase):
    base=Path(directory)
    for name in headers:
     p=base/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('#include "'+str(ROOT/'tests/reader_stubs/platform.h')+'"\n')
-   for name,sources in [('storage',['reader_storage.c','reader_radio.c']),('network_runtime',['reader_radio.c']),('ble_runtime',['reader_pairing.c','reader_local.c','reader_radio.c'])]:
+   for name,sources in [('storage',['reader_storage.c','reader_radio.c']),('network_runtime',['reader_radio.c']),('ble_runtime',['reader_pairing.c','reader_local.c','reader_radio.c','qimen_cover.c'])]:
     binary=str(base/name);subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-ffunction-sections','-fdata-sections',('-Wl,-dead_strip' if sys.platform=='darwin' else '-Wl,--gc-sections'),'-I'+str(base),'-I'+str(ROOT/'main'),str(ROOT/('tests/test_reader_'+name+'.c'))]+[str(ROOT/'main'/x) for x in sources]+['-o',binary],check=True);subprocess.run([binary],check=True)
  def test_font_inventory(self):
   text=''.join(p.read_text() for p in (ROOT/'main').glob('*.[ch]'));required={ord(c) for c in text if '\u3400'<=c<='\u9fff'}
-  f=(ROOT/'assets/fonts/reader_font.c').read_text();start=int(re.search(r'\.range_start=(\d+)',f)[1]);supported={start+int(n) for n in re.search(r'unicode_list\[\] = \{\s*([^}]+)',f)[1].split(',') if n.strip()};self.assertFalse(required-supported)
+  for font in ('reader_font','reader_chart_font'):
+   f=(ROOT/f'assets/fonts/{font}.c').read_text();start=int(re.search(r'\.range_start=(\d+)',f)[1]);supported={start+int(n) for n in re.search(r'unicode_list\[\] = \{\s*([^}]+)',f)[1].split(',') if n.strip()};self.assertFalse(required-supported,font)
 if __name__=='__main__':unittest.main()

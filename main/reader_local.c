@@ -1,5 +1,6 @@
 #include "reader_local.h"
 #include "reader_radio.h"
+#include "qimen_cover.h"
 #include <string.h>
 
 int reader_local_feed(reader_local_frame_t *f, uint8_t byte) {
@@ -46,6 +47,12 @@ bool reader_local_parse(const char *line, reader_local_command_t *c) {
         *p = 0; fields[count++] = p + 1;
     }
     memset(c, 0, sizeof(*c)); uint64_t n;
+    if (!strcmp(fields[0], "COVERINFO") && count==1) {c->op=LOCAL_COVER_INFO;return true;}
+    if (!strcmp(fields[0], "COVERRESET") && count==1) {c->op=LOCAL_COVER_RESET;return true;}
+    if (!strcmp(fields[0], "NAME") && count==2) {
+        if(!hex_text(fields[1],c->ssid,sizeof(c->ssid))||!qimen_cover_name_valid(c->ssid))return false;
+        c->op=LOCAL_NAME;return true;
+    }
     if (!strcmp(fields[0], "HELLO") && count == 1) { c->op = LOCAL_HELLO; return true; }
     if (!strcmp(fields[0], "STATS") && count == 1) {c->op=LOCAL_STATS;return true;}
     if (!strcmp(fields[0], "GET") && count == 1) { c->op = LOCAL_GET; return true; }

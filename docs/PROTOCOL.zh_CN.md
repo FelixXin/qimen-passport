@@ -11,3 +11,9 @@ USB 和 BLE 接收 UTF-8、LF 结尾的指令，每行除 LF 外最多 383 字�
 HTTP POST /api/command 使用相同单行指令但不带 LF，X-Qimen-Key 请求头填写设备八位管理码。管理码和密码不写入 URL、日志或 localStorage。只在设备热点或可信网络使用；本地 HTTP 为明文，不是远程安全管理服务。
 
 完整时间有范围校验，排盘支持北京时间 2024—2099 年。校时不会替换已存在的有效快照，需要 CAST、切局或本地设时保存后起新盘。手机蓝牙客户端不发送 TIME 时，设备不会自行获得手机时间。
+
+## 封面扩展（0.3.0）
+
+`NAME\t<UTF-8 hex>` 保存最多八个字的显示名称，空值恢复应用名称。`COVERINFO` 返回 `QIMEN / OK / COVERINFO / name_hex / custom / generation` 六个制表符分隔字段。`COVERRESET` 保留名称，恢复太极图像。名称需通过 UTF-8、长度和设备字库检查。
+
+HTTP `POST /api/cover` 接收严格 153600 字节的 240×320 小端 RGB565。请求头需 `X-Qimen-Key` 和八位十六进制 `X-Cover-CRC32`；服务端使用固定缓冲写入非活动槽，完整校验后提交。失败不替换当前图。`GET /api/cover` 使用同一鉴权，返回当前 RGB565 或无自定义图片时的 204。无文件名、目录或任意 Flash 地址输入。

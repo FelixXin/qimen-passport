@@ -11,4 +11,5 @@ main=''.join(p.read_text() for p in (root/'main').glob('*.[ch]'))
 for marker in ['reader_core','reader_upload','spiffs','LOCAL_PROFILE','LOCAL_AVATAR','wordbooks','developer_avatar']:
  assert marker not in main,marker
 assert 'spiffs_create_partition_image' not in (root/'main/CMakeLists.txt').read_text()
+table=(root/'partitions.csv').read_text();assert '0x10000,0x370000' in table and '0x380000,0x80000' in table
 print('Public-source and removed-feature checks: PASS')

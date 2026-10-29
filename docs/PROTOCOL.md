@@ -11,3 +11,9 @@ All replies start QIMEN TAB OK or ERR. HELLO adds version; GET adds epoch (zero 
 HTTP POST `/api/command` uses the same single-line command without LF, with `X-Qimen-Key` set to the device's eight-character management code. No key or password is put in a URL, log or localStorage. Use the board's own hotspot or another trusted network; HTTP is local cleartext, not a remote secure administration service.
 
 Full time values are range-checked; chart support is Beijing 2024–2099. Time changes do not replace an already valid frozen chart until CAST, adjacent chart operation or manual on-device save. No periodic BLE time sync occurs unless the connected client actually sends TIME.
+
+## Cover extension (0.3.0)
+
+`NAME\t<UTF-8 hex>` saves up to eight supported display characters; an empty value restores the app title. `COVERINFO` returns six tab-separated fields: `QIMEN / OK / COVERINFO / name_hex / custom / generation`. `COVERRESET` restores Taiji without changing the name. Names are checked for UTF-8, length and glyph coverage.
+
+`POST /api/cover` requires exactly 153600 bytes of 240×320 little-endian RGB565, `X-Qimen-Key` and an eight-digit hexadecimal `X-Cover-CRC32`. It streams to the inactive bank and commits after validation. Failure retains the current image. Authorized `GET /api/cover` returns current RGB565, or 204 for default. No filename, path or arbitrary Flash address is accepted.

@@ -10,7 +10,16 @@ Cover illustration; not a photograph or exact screen capture.
 
 ![Actual native UI preview](assets/images/seven-categories.png)
 
+## UI preview
+
+![0.3.0 native rendering](assets/images/settings-0.3.0.png)
+
+[Phone webpage preview](assets/images/web-mobile-0.3.0.png). These are software-rendered previews.
+
 ## Features
+
+Source revision 0.3.0 adds a reusable Taiji cover, a user-configurable name, optional full-image uploads, and four-row settings cards. The public 0.2.0 release remains unchanged. Names and images are stored locally; no private identity is prefilled.
+
 
 - Beijing time (UTC+8), supported civil years 2024–2099; frozen four-pillar/hour chart snapshots.
 - Nine palaces, heaven/earth/hidden stems, stars, doors, gods, chiefs, void and travelling horse.
@@ -18,14 +27,14 @@ Cover illustration; not a photograph or exact screen capture.
 - Palace detail with growth stages, month/day/hour five-element strengths and colored tomb/punishment/forced-door states.
 - Seven separate symbol articles: palace → heaven stem → earth stem → hidden stem → door → star → god. Line scrolling, explicit end-of-article paging and reverse navigation. Article pages hide the pillars/date/status bar and show seven category buttons. On entry, Up/Down selects a category and OK enters reading. While reading, OK returns focus to categories; long OK returns to palace detail.
 - Complete on-device year/month/day/hour/minute editing, optional Wi-Fi webpage/USB/BLE time sync and Wi-Fi SNTP.
-- On-demand own BLE configuration, authenticated local webpage, brightness and neutral low-brightness clock standby.
+- On-demand own BLE configuration, authenticated local webpage, brightness and a dim Taiji or custom-image cover.
 
 ## Buttons
 
 | Screen | Operation |
 | --- | --- |
 | Grid | Up/down: select palace or Previous/Next; OK: activate; long up/down: adjacent chart; double OK: current chart |
-| Grid | Long OK: settings; double Up: clock standby |
+| Grid | Long OK: settings; double Up: cover standby |
 | Palace detail | Down or OK: symbol articles; Up or long OK: grid |
 | Symbol article | Up/down: one text line; one additional Down at the end: next article; Up at the top: previous article's end |
 | Symbol article | OK: category selection; long OK: palace detail; first article's top-Up: detail; final article stops at its end |
@@ -33,7 +42,7 @@ Cover illustration; not a photograph or exact screen capture.
 | Local clock | Up increases / Down decreases selected field; OK advances and saves after minutes; long OK cancels |
 | Standby | First right-key gesture only wakes; no accidental navigation |
 
-After 60 seconds of inactivity, a low-brightness neutral clock appears. The BLE configuration page keeps its active setup window awake. This is display standby, not deep sleep. A power cycle loses the clock anchor: synchronize or explicitly set a complete date again. The editor's initial date is a placeholder, never an automatically trusted current time.
+After 60 seconds of inactivity, the low-brightness cover with a live clock appears. The BLE configuration page keeps its active setup window awake. This is display standby, not deep sleep. A power cycle loses the clock anchor: synchronize or explicitly set a complete date again. The editor's initial date is a placeholder, never an automatically trusted current time.
 
 ## Wi-Fi and time
 
@@ -44,6 +53,12 @@ External Wi-Fi credentials are committed after matching IP acquisition. Success 
 ## BLE and USB
 
 Long OK → Bluetooth time opens a three-minute window. A generic BLE client must subscribe to TX, write the six-digit on-screen AUTH code and then send TIME using its current UTC Unix seconds. BLE system settings alone do not send time or Wi-Fi credentials. iPhone Safari does not provide this client; use the local Wi-Fi page or a suitable BLE application. This project does not ship a WeChat Mini Program or signed iPhone app. See [protocol](docs/PROTOCOL.md).
+
+## Cover settings
+
+Enable Wi-Fi on the device, join Qimen-Passport and open `http://192.168.4.1`. Enter the displayed management code. The Cover tab lets you save a name (up to eight supported characters), crop/zoom an image, save it, or restore the default Taiji cover without changing the name. An empty name uses the app title. Unsupported glyphs are rejected. Images are converted on the phone to 240×320 RGB565 and streamed into an inactive bank; CRC validation and a final commit preserve the previous image on interruption.
+
+The cover briefly appears at boot and returns on double-Up or through Settings → Cover. A right-side key wakes the device. The new app partition ends at 0x380000, followed by a 512 KiB two-bank cover partition ending at 0x400000. Existing wordbook storage from 0x400000 is untouched. A partition change requires reviewed partition-table and application updates, with a recovery backup; an app-only flash is insufficient.
 
 ## Build
 

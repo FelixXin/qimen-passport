@@ -5,6 +5,13 @@
 const char *WIFI_EVENT="wifi";
 const char *IP_EVENT="ip";
 static unsigned step,fail_at,live_netifs,saved_credentials;
+static bool cover_allow,cover_finish_ok=true,cover_aborted;
+static size_t cover_received,body_received;
+static int cover_fail_read;
+static char request_key[16]="",request_crc[16]="00000000",response_status[64];
+static unsigned char response_body[128];
+static bool cover_get_active;
+static unsigned char cover_read_pixels[QIMEN_COVER_BYTES];
 static char associated_ssid[33]="old";
 static network_work_t queued;
 static bool driver_live,running,http_live,handlers[2],fail_stop;
@@ -46,19 +53,25 @@ esp_err_t reader_storage_network_save(const char *ssid,const char *password) {
     assert(!strcmp(ssid,"new-network")&&!strcmp(password,"new-password"));saved_credentials++;return ESP_OK;
 }
 esp_err_t reader_storage_network_forget(void) {return ESP_OK;}
+bool qimen_cover_store_acquire(qimen_cover_view_t *v){memset(v,0,sizeof(*v));v->pixels=cover_get_active?cover_read_pixels:NULL;return true;}
+void qimen_cover_store_release(bool rendered){(void)rendered;}
+bool qimen_cover_store_begin(size_t size,uint32_t crc){(void)crc;assert(size==QIMEN_COVER_BYTES);cover_received=0;cover_aborted=false;return cover_allow;}
+bool qimen_cover_store_chunk(size_t offset,const void *bytes,size_t size){assert(bytes&&offset==cover_received&&size<=1024);cover_received+=size;return true;}
+bool qimen_cover_store_finish(void){assert(cover_received==QIMEN_COVER_BYTES);return cover_finish_ok;}
+void qimen_cover_store_abort(void){cover_aborted=true;}
 static bool bluetooth_active;
 void reader_ble_info(reader_ble_info_t *out) {memset(out,0,sizeof(*out));out->initialized=bluetooth_active;}
 bool reader_ble_shutdown(void) {return true;}
 bool reader_remote_submit(const char *line,char *reply_out,size_t capacity) {(void)line;(void)reply_out;(void)capacity;return false;}
 BaseType_t xQueueSend(QueueHandle_t q,const void *item,unsigned wait) {(void)q;(void)wait;queued=*(const network_work_t*)item;return pdTRUE;}
 void vTaskDelay(unsigned delay) {(void)delay;}
-esp_err_t httpd_resp_set_status(httpd_req_t *r,const char *s) {(void)r;(void)s;return ESP_OK;}
+esp_err_t httpd_resp_set_status(httpd_req_t *r,const char *s) {(void)r;snprintf(response_status,sizeof(response_status),"%s",s);return ESP_OK;}
 esp_err_t httpd_resp_set_type(httpd_req_t *r,const char *s) {(void)r;(void)s;return ESP_OK;}
 esp_err_t httpd_resp_set_hdr(httpd_req_t *r,const char *a,const char *b) {(void)r;(void)a;(void)b;return ESP_OK;}
-esp_err_t httpd_resp_sendstr(httpd_req_t *r,const char *s) {(void)r;(void)s;return ESP_OK;}
-esp_err_t httpd_resp_send(httpd_req_t *r,const char *s,size_t n) {(void)r;(void)s;(void)n;return ESP_OK;}
-esp_err_t httpd_req_get_hdr_value_str(httpd_req_t *r,const char *s,char *v,size_t n) {(void)r;(void)s;(void)v;(void)n;return ESP_FAIL;}
-int httpd_req_recv(httpd_req_t *r,char *s,size_t n) {(void)r;(void)s;(void)n;return -1;}
+esp_err_t httpd_resp_sendstr(httpd_req_t *r,const char *s) {(void)r;snprintf((char*)response_body,sizeof(response_body),"%s",s);return ESP_OK;}
+esp_err_t httpd_resp_send(httpd_req_t *r,const char *s,size_t n) {(void)r;assert(s&&n==QIMEN_COVER_BYTES);return ESP_OK;}
+esp_err_t httpd_req_get_hdr_value_str(httpd_req_t *r,const char *s,char *v,size_t n) {(void)r;const char *value=!strcmp(s,"X-Qimen-Key")?request_key:request_crc;if(strlen(value)>=n)return ESP_FAIL;snprintf(v,n,"%s",value);return ESP_OK;}
+int httpd_req_recv(httpd_req_t *r,char *s,size_t n) {(void)r;if(cover_fail_read&&body_received>=1024)return -1;memset(s,0,n);body_received+=n;return (int)n;}
 const unsigned char web_start[] __asm__("_binary_device_html_start")="test";
 const unsigned char web_end[] __asm__("_binary_device_html_end")="";
 
@@ -101,5 +114,14 @@ int main(void) {
     network_work_t enable={.kind=NET_ENABLE};process_work(&enable);assert(step==allocations&&!info.enabled);
     bluetooth_active=false;process_work(&enable);assert(info.enabled&&info.portal);
     assert(release_wifi()==ESP_OK);reset();
+    strcpy(info.key,"1234ABCD");httpd_req_t request={.content_len=QIMEN_COVER_BYTES};
+    assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"403 Forbidden"));
+    strcpy(request_key,"1234ABCD");request.content_len=1;assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"400 Bad Request"));request.content_len=QIMEN_COVER_BYTES;
+    strcpy(request_crc,"nothex00");assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"400 Bad Request"));strcpy(request_crc,"00000000");
+    assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"409 Conflict"));cover_allow=true;cover_fail_read=1;body_received=0;
+    assert(cover_page(&request)==ESP_OK&&cover_aborted&&!strcmp(response_status,"408 Request Timeout"));
+    cover_fail_read=0;body_received=0;cover_finish_ok=false;assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"422 Unprocessable Content"));
+    body_received=0;cover_finish_ok=true;assert(cover_page(&request)==ESP_OK&&!strcmp(response_status,"200 OK")&&!strcmp((char*)response_body,"QIMEN\tOK\tCOVER"));
+    assert(cover_received==QIMEN_COVER_BYTES);assert(cover_image(&request)==ESP_OK&&!strcmp(response_status,"204 No Content"));cover_get_active=true;assert(cover_image(&request)==ESP_OK);
     printf("Reader Wi-Fi: %u allocation/register/start/route fault points, cleanup retry and BLE/web cycle PASS\n",stages);
 }

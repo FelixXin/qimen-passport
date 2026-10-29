@@ -6,6 +6,10 @@
 
 Network and BLE workers retain the tested rollback/retry lifecycle from the mixed application, with book upload removed. HTTP commands use a bounded mailbox; BLE pairing uses a three-minute application AUTH session and generation tokens. The protocol has no profile/avatar/book operations. It is an independent `QIMEN` protocol, not compatible with the FoloToy vendor installer or the older CET6 GET response.
 
-Only `qimen_app` preferences and `qimen_net` network records are used. No filesystem is mounted. Clock anchors live in RAM. Board support remains in `components/bsp` and is copied unchanged; unused audio driver sources remain upstream infrastructure and no application audio feature is registered.
+Settings use `qimen_app`, `qimen_net` and `qimen_cover` namespaces. No filesystem is mounted. Clock anchors live in RAM. Board support remains in `components/bsp` and is copied unchanged; unused audio driver sources remain upstream infrastructure and no application audio feature is registered.
 
-Original mixed-app sources, managed dependencies, build logs and installed hardware are not changed by extraction. Managed dependencies and build outputs stay ignored. The source snapshot is not a clone with upstream history; create an upstream-based fork/feature branch when publishing, rather than pretending this folder has upstream commit history.
+Original mixed-app sources, managed dependencies, build logs and installed hardware are not changed by extraction. Managed dependencies and build outputs stay ignored. The source snapshot is not a clone with upstream history; this independent repository preserves upstream attribution rather than claiming upstream Git history.
+
+## Cover storage and concurrency
+
+`qimen_cover` is a portable dual-bank RGB565 store with generation, length, payload CRC and header CRC. The header is committed last; reset creates a tombstone. `qimen_cover_store` adapts the partition, name NVS, memory mapping and mutex. Rendering acknowledges the current bank before the previous bank may be erased. Upload uses a 1 KiB buffer, with no full-image heap decoding. Image GET/POST and command routes share management-key authorization; name writes pass through the application queue.

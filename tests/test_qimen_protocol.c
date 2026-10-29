@@ -11,4 +11,8 @@ int main(void){reader_local_command_t c;reader_local_frame_t f={0};
  assert(!reader_local_parse("PROFILE\tname\tnote\t0",&c));assert(!reader_local_parse("AVATAR_BEGIN\t8192\t00000000",&c));
  assert(reader_local_parse("AUTH\t001234",&c)&&c.number==1234);assert(!reader_local_parse("AUTH\t1234",&c));
  for(unsigned i=0;i<READER_LOCAL_MAX;i++)assert(!reader_local_feed(&f,'a'));assert(reader_local_feed(&f,'\n')==-1);assert(!reader_local_feed(&f,'H'));assert(reader_local_feed(&f,'\n')==1&&!strcmp(f.line,"H"));
+ assert(reader_local_parse("NAME\te5ada6e69893",&c)&&c.op==LOCAL_NAME&&!strcmp(c.ssid,"学易"));
+ assert(reader_local_parse("NAME\t",&c)&&c.op==LOCAL_NAME);
+ assert(!reader_local_parse("NAME\t00",&c));assert(!reader_local_parse("NAME\tc0af",&c));
+ assert(reader_local_parse("COVERINFO",&c)&&c.op==LOCAL_COVER_INFO);assert(reader_local_parse("COVERRESET",&c)&&c.op==LOCAL_COVER_RESET);
  puts("Protocol: time/numeric/credential/framing bounds, removed private operations PASS");}

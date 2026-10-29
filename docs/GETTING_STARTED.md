@@ -1,4 +1,4 @@
-# Qimen Passport 0.2.0 — Getting started
+# Qimen Passport 0.3.0 — Getting started
 
 This is a public preview. Firmware builds, host tests and native desktop rendering passed. This standalone revision has not been accepted on physical hardware; wireless behavior, first installation and power use still need device testing. The cover is an illustration; actual rendered UI previews are included in the repository.
 
@@ -24,3 +24,7 @@ Hold OK, open Bluetooth time and enable the three-minute window. Use a client su
 Double-press Up for the dim clock. It also appears after 60 seconds of inactivity. The first right-side button press only wakes the screen.
 
 For a first installation, use the verified full merged image at offset 0x0. It may replace existing firmware and settings. Do not use an application-only image as a full image. Preserving data when updating a mixed-version device requires a separate review; publishing this preview does not modify your device. Source, licensing and checksums are available in the repository and preview Release.
+
+## Cover and name
+
+Settings → Cover opens cover information; OK previews the default Taiji design. In the phone webpage, save a name, choose and crop/zoom an image, upload it, or restore Taiji. Name and image survive power loss. Names allow up to eight supported characters; an empty name uses the application title. This revision adds image storage, so an existing-device update must review and update the partition table with a recovery backup.

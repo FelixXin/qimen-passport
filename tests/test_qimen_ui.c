@@ -10,6 +10,7 @@ static void flush(lv_display_t *d,const lv_area_t *a,uint8_t *pixels){uint16_t *
 static void capture(const char *name){lv_obj_invalidate(lv_screen_active());lv_refr_now(NULL);char path[256];snprintf(path,sizeof(path),"%s/%s.ppm",output_dir,name);FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6\n240 320\n255\n");for(unsigned i=0;i<240*320;i++){uint16_t c=frame[i];unsigned char rgb[]={(unsigned char)(((c>>11)&31)*255/31),(unsigned char)(((c>>5)&63)*255/63),(unsigned char)((c&31)*255/31)};fwrite(rgb,1,3,f);}fclose(f);}
 static lv_obj_t *find(lv_obj_t *o,const char *text){if(lv_obj_check_type(o,&lv_label_class)&&!strcmp(lv_label_get_text(o),text))return o;for(unsigned i=0;i<lv_obj_get_child_count(o);i++){lv_obj_t *found=find(lv_obj_get_child(o,i),text);if(found)return found;}return NULL;}
 int main(int argc,char **argv){assert(argc==2);output_dir=argv[1];setbuf(stdout,NULL);lv_init();lv_display_t *d=lv_display_create(240,320);lv_display_set_color_format(d,LV_COLOR_FORMAT_RGB565);lv_display_set_buffers(d,buffer,NULL,sizeof(buffer),LV_DISPLAY_RENDER_MODE_PARTIAL);lv_display_set_flush_cb(d,flush);qimen_ui_create();qimen_navigation_t n;qimen_navigation_init(&n,0);reader_qimen_t q;assert(reader_qimen_cast(1792645200LL,&q));qimen_view_t v={.navigation=&n,.chart=&q,.battery=86,.notice="",.clock={.valid=true,.has_date=true,.year=2026,.month=10,.day=22,.hour=13,.minute=2}};
+ assert(qimen_ui_name_supported("学易")&&qimen_ui_name_supported("QIMEN")&&!qimen_ui_name_supported("😀"));
  qimen_ui_render(&v);capture("grid");n.page=Q_DETAIL;qimen_ui_render(&v);capture("detail");
  char status[128];reader_qimen_summary_text(&q,4,status,sizeof(status));lv_obj_t *bar=find(lv_screen_active(),status);assert(bar&&!lv_obj_has_flag(bar,LV_OBJ_FLAG_HIDDEN));
  const unsigned grid[]={4,9,2,3,5,7,8,1,6};unsigned lines=0;
@@ -24,6 +25,14 @@ int main(int argc,char **argv){assert(argc==2);output_dir=argv[1];setbuf(stdout,
   assert(lv_obj_get_scroll_bottom(body)<=0);int end=lv_obj_get_scroll_y(body);assert(qimen_ui_scroll(1)&&lv_obj_get_scroll_y(body)==end);
  }
  for(unsigned page=Q_MENU;page<=Q_HELP;page++){n.page=(qimen_page_t)page;n.selected=0;qimen_ui_render(&v);capture((const char*[]){"menu","wifi","ble","clock","help"}[page-Q_MENU]);}
- n.page=Q_GRID;n.sleep=true;qimen_ui_render(&v);capture("standby");n.sleep=false;q.valid=false;qimen_ui_render(&v);capture("unset");
+ n.page=Q_COVER;n.sleep=false;v.cover.name[0]=0;v.cover.available=true;qimen_ui_render(&v);capture("cover-settings");
+ n.page=Q_BRIGHT;n.brightness=1;qimen_ui_render(&v);capture("brightness");
+ n.page=Q_WIFI;v.network.enabled=true;strcpy(v.network.ap,"Qimen-Passport");strcpy(v.network.password,"sample123");strcpy(v.network.key,"12AB34CD");qimen_ui_render(&v);capture("wifi-active");
+ n.page=Q_CLOCK;n.field=1;n.year=2026;n.month=10;n.day=29;n.hour=18;n.minute=40;qimen_ui_render(&v);capture("time-editor");
+ n.page=Q_MENU;n.selected=1;qimen_ui_render(&v);capture("settings-focus");
+ n.page=Q_GRID;n.sleep=true;qimen_ui_render(&v);capture("standby");
+ static uint8_t custom[QIMEN_COVER_BYTES];for(unsigned i=0;i<sizeof(custom);i+=2){custom[i]=0xe0;custom[i+1]=0x07;}
+ v.cover.pixels=custom;v.cover.custom=true;qimen_ui_render(&v);capture("custom-cover");v.cover.pixels=NULL;v.cover.custom=false;qimen_ui_render(&v);capture("default-restored");
+ n.sleep=false;q.valid=false;qimen_ui_render(&v);capture("unset");
  assert(lv_mem_test()==LV_RESULT_OK);lv_mem_monitor_t m;lv_mem_monitor(&m);printf("Native LVGL: 63 articles, %u line scrolls, stable refresh position, end boundary, all settings/standby/unset pages and pool integrity PASS; free=%lu largest=%lu\n",lines,(unsigned long)m.free_size,(unsigned long)m.free_biggest_size);
 }

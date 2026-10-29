@@ -19,5 +19,8 @@ int main(void){
  n.field=1;n.month=1;n.day=31;click(&n,K_UP);assert(n.month==2&&n.day==28);
  n.field=4;assert(click(&n,K_OK)==A_TIME);
  n.page=Q_GRID;n.sleep=true;assert(qimen_navigation_key(&n,K_OK,E_PRESS,100000000)==A_WAKE);assert(qimen_navigation_key(&n,K_OK,E_RELEASE,100100000)==A_NONE);assert(qimen_navigation_key(&n,K_OK,E_CLICK,100280000)==A_NONE);assert(n.page==Q_GRID);assert(qimen_navigation_key(&n,K_OK,E_CLICK,100700000)==A_DRAW&&n.page==Q_DETAIL);
+ n.page=Q_GRID;assert(qimen_navigation_key(&n,K_OK,E_LONG,n.last_input+1000000)==A_DRAW&&n.page==Q_MENU);
+ click(&n,K_DOWN);assert(n.selected==1);click(&n,K_OK);assert(n.page==Q_COVER);click(&n,K_OK);assert(n.sleep);
+ n.sleep=false;n.page=Q_MENU;n.selected=5;click(&n,K_OK);assert(n.page==Q_BRIGHT);unsigned brightness=n.brightness;assert(click(&n,K_UP)==A_PREF&&n.brightness==(brightness+1)%4);click(&n,K_OK);assert(n.page==Q_MENU&&n.selected==5);
  puts("Navigation: full-date conversion/leaps, 11 targets, seven tabs/articles, boundary/reverse, wake gesture PASS");
 }

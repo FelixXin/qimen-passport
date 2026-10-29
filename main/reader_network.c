@@ -3,6 +3,7 @@
 #include "reader_remote.h"
 #include "reader_storage.h"
 #include "reader_ble.h"
+#include "qimen_cover_store.h"
 #include "esp_wifi_default.h"
 #include "esp_event.h"
 #include "esp_http_server.h"
@@ -76,6 +77,30 @@ static esp_err_t command_page(httpd_req_t *r){
     esp_err_t err=reply(r,ok?"200 OK":"503 Service Unavailable",ok?answer:"设备忙，请稍后刷新状态");
     memset(answer,0,sizeof(answer));return err;
 }
+static esp_err_t cover_image(httpd_req_t *r){
+    if(!authorized(r))return ESP_OK;
+    qimen_cover_view_t v;if(!qimen_cover_store_acquire(&v))return reply(r,"503 Service Unavailable","设备忙");
+    esp_err_t err;
+    if(v.pixels){httpd_resp_set_type(r,"application/octet-stream");httpd_resp_set_hdr(r,"Cache-Control","no-store");err=httpd_resp_send(r,(const char*)v.pixels,QIMEN_COVER_BYTES);}
+    else err=reply(r,"204 No Content","");
+    qimen_cover_store_release(false);return err;
+}
+static esp_err_t cover_page(httpd_req_t *r){
+    if(!authorized(r))return ESP_OK;
+    if(r->content_len!=QIMEN_COVER_BYTES)return reply(r,"400 Bad Request","封面尺寸无效");
+    char sum[9]={0};uint32_t crc=0;
+    if(httpd_req_get_hdr_value_str(r,"X-Cover-CRC32",sum,sizeof(sum))!=ESP_OK||strlen(sum)!=8)return reply(r,"400 Bad Request","封面校验无效");
+    for(unsigned i=0;i<8;i++){unsigned char ch=(unsigned char)sum[i];unsigned value=ch>='0'&&ch<='9'?ch-'0':ch>='a'&&ch<='f'?ch-'a'+10:ch>='A'&&ch<='F'?ch-'A'+10:99;if(value>15)return reply(r,"400 Bad Request","封面校验无效");crc=(crc<<4)|value;}
+    if(!qimen_cover_store_begin(r->content_len,crc))return reply(r,"409 Conflict","设备忙或图片存储未就绪，请稍后重试");
+    char buffer[1024];size_t offset=0;
+    while(offset<r->content_len){size_t n=r->content_len-offset;if(n>sizeof(buffer))n=sizeof(buffer);
+        if(!receive(r,buffer,n)){qimen_cover_store_abort();return reply(r,"408 Request Timeout","上传中断，原封面保留");}
+        if(!qimen_cover_store_chunk(offset,buffer,n)){qimen_cover_store_abort();return reply(r,"503 Service Unavailable","保存失败，原封面保留");}offset+=n;
+    }
+    if(!qimen_cover_store_finish())return reply(r,"422 Unprocessable Content","封面校验失败，原封面保留");
+    return reply(r,"200 OK","QIMEN\tOK\tCOVER");
+}
+
 static bool save_credentials(const char *ssid,const char *password) {
     return reader_storage_network_save(ssid,password)==ESP_OK;
 }
@@ -204,7 +229,9 @@ static esp_err_t start_web(void) {
     if(error!=ESP_OK)return error;
     const httpd_uri_t routes[]={
         {.uri="/",.method=HTTP_GET,.handler=home},
-        {.uri="/api/command",.method=HTTP_POST,.handler=command_page}};
+        {.uri="/api/command",.method=HTTP_POST,.handler=command_page},
+        {.uri="/api/cover",.method=HTTP_POST,.handler=cover_page},
+        {.uri="/api/cover",.method=HTTP_GET,.handler=cover_image}};
     for(unsigned i=0;i<sizeof(routes)/sizeof(routes[0]);i++)
         if((error=httpd_register_uri_handler(server,&routes[i]))!=ESP_OK)return error;
     return ESP_OK;

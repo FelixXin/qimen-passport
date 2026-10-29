@@ -1,4 +1,5 @@
 #include "qimen_ui.h"
+#include "qimen_cover_store.h"
 #include "reader_local.h"
 #include "reader_remote.h"
 #include "reader_radio.h"
@@ -32,7 +33,11 @@ typedef struct {bsp_btn_t button;bsp_btn_ev_t event;} key_message_t;
 static void render(void){
  qimen_view_t v={.navigation=&navigation,.chart=&chart,.notice=notice,.battery=bsp_battery_soc()};
  reader_clock_read(&clock_model,esp_timer_get_time(),&v.clock);reader_network_info(&v.network);reader_ble_info(&v.bluetooth);
- if(bsp_lvgl_lock(200)){qimen_ui_render(&v);bsp_lvgl_unlock();}
+ qimen_cover_view_t cover_view;
+ if(qimen_cover_store_acquire(&cover_view)){v.cover=cover_view;bool rendered=false;
+  if(bsp_lvgl_lock(200)){qimen_ui_render(&v);bsp_lvgl_unlock();rendered=true;}
+  qimen_cover_store_release(rendered);
+ }
 }
 static void cast(void){reader_clock_value_t now;reader_clock_read(&clock_model,esp_timer_get_time(),&now);if(!now.has_date||!reader_qimen_cast(now.epoch_utc,&chart))strcpy(notice,"请先设置完整日期和时间");}
 static void reply(const reader_ble_message_t *ble,uint32_t token,const char *line){if(ble)reader_ble_reply(line,ble->generation);else if(token)reader_remote_reply(token,line);else printf("%s\n",line);}
@@ -42,6 +47,13 @@ static void local(const char *line,const reader_ble_message_t *ble,uint32_t toke
  if(ble&&!reader_ble_gate(ble,&c))return;
  bool ok=true;
  switch(c.op){
+ case LOCAL_NAME:{bool supported=false;if(bsp_lvgl_lock(100)){supported=qimen_ui_name_supported(c.ssid);bsp_lvgl_unlock();}
+  ok=supported&&qimen_cover_store_name(c.ssid);snprintf(out,sizeof(out),supported?"QIMEN\t%s\tNAME":"QIMEN\tERR\tNAME_GLYPH",ok?"OK":"ERR");break;}
+ case LOCAL_COVER_RESET:ok=qimen_cover_store_reset();snprintf(out,sizeof(out),"QIMEN\t%s\tCOVERRESET",ok?"OK":"ERR");break;
+ case LOCAL_COVER_INFO:{qimen_cover_view_t v;
+  if(qimen_cover_store_acquire(&v)){char encoded[QIMEN_NAME_BYTES*2]={0};for(size_t i=0;i<strlen(v.name);i++)snprintf(encoded+2*i,3,"%02x",(unsigned char)v.name[i]);
+   snprintf(out,sizeof(out),"QIMEN\tOK\tCOVERINFO\t%s\t%u\t%lu",encoded,v.custom,(unsigned long)v.generation);qimen_cover_store_release(false);
+  }else snprintf(out,sizeof(out),"QIMEN\tERR\tBUSY");break;}
  case LOCAL_HELLO:snprintf(out,sizeof(out),"QIMEN\tOK\tHELLO\t%s",esp_app_get_description()->version);break;
  case LOCAL_GET:{reader_clock_value_t now;reader_clock_read(&clock_model,esp_timer_get_time(),&now);snprintf(out,sizeof(out),"QIMEN\tOK\tGET\t%lld",(long long)(now.has_date?now.epoch_utc:0));break;}
  case LOCAL_TIME:ok=reader_clock_local(&clock_model,c.epoch,esp_timer_get_time());snprintf(out,sizeof(out),"QIMEN\t%s\tTIME",ok?"OK":"ERR");if(ok&&!chart.valid)cast();break;
@@ -88,7 +100,7 @@ void app_main(void){
  ESP_LOGI("qimen","Qimen Passport %s starting",esp_app_get_description()->version);
  esp_err_t error=nvs_flash_init();if(error!=ESP_OK){ESP_LOGE("qimen","NVS unavailable: %s; no automatic erase",esp_err_to_name(error));}
  have_settings=error==ESP_OK&&nvs_open("qimen_app",NVS_READWRITE,&settings)==ESP_OK;
- qimen_navigation_init(&navigation,esp_timer_get_time());reader_clock_init(&clock_model);
+ qimen_cover_store_init();qimen_navigation_init(&navigation,esp_timer_get_time());navigation.intro=true;reader_clock_init(&clock_model);
  uint8_t value;if(have_settings&&nvs_get_u8(settings,"brightness",&value)==ESP_OK&&value<4)navigation.brightness=value;
  if(bsp_display_init()!=ESP_OK||!bsp_lvgl_init()){ESP_LOGE("qimen","Display unavailable");return;}
  (void)bsp_battery_init();if(!bsp_lvgl_lock(1000))return;qimen_ui_create();bsp_lvgl_unlock();
@@ -96,13 +108,13 @@ void app_main(void){
  reader_remote_init();reader_network_init();bool usb=reader_usb_init();
  if(have_settings&&nvs_get_u8(settings,"wifi",&value)==ESP_OK&&value)wifi_wanted=reader_network_enable(true);
  bsp_display_backlight((navigation.brightness+1)*25);render();
- int64_t next_render=0;bool connected_before=false;
+ int64_t next_render=0,intro_until=esp_timer_get_time()+2000000;bool connected_before=false;
  for(;;){
   key_message_t key;while(xQueueReceive(keys,&key,0)==pdTRUE)input(key);
   reader_remote_message_t remote;if(reader_remote_next(&remote)){local(remote.line,NULL,remote.token);memset(&remote,0,sizeof(remote));}
   reader_ble_message_t ble_message;while(reader_ble_next(&ble_message)){local(ble_message.line,&ble_message,0);memset(&ble_message,0,sizeof(ble_message));}
   if(usb){uint8_t bytes[64];int count=read(STDIN_FILENO,bytes,sizeof(bytes));for(int i=0;i<count;i++){int status=reader_local_feed(&usb_frame,bytes[i]);if(status==1)local(usb_frame.line,NULL,0);else if(status<0)printf("QIMEN\tERR\tLENGTH\n");}memset(bytes,0,sizeof(bytes));}
-  int64_t now=esp_timer_get_time();reader_ble_tick(now);reader_network_info_t net;reader_network_info(&net);reader_ble_info_t ble;reader_ble_info(&ble);
+  int64_t now=esp_timer_get_time();if(navigation.intro&&now>=intro_until){navigation.intro=false;render();}reader_ble_tick(now);reader_network_info_t net;reader_network_info(&net);reader_ble_info_t ble;reader_ble_info(&ble);
   if(ble_pending&&(net.ble_ready||now>=ble_deadline)){ble_pending=false;if(!net.ble_ready||net.ble_prepare_failed||!reader_ble_open(now))strcpy(notice,"蓝牙启动失败，请重试");else notice[0]=0;render();}
   if(radio_restore&&!ble_pending&&!ble.initialized&&!ble.stopping&&!ble.window){if(!wifi_wanted||reader_network_resume_web())radio_restore=false;}
   if(net.connected&&!sntp_started){esp_sntp_config_t config=ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");config.start=true;sntp_started=esp_netif_sntp_init(&config)==ESP_OK;}
