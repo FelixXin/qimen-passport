@@ -15,3 +15,5 @@ FoloToy-AI-Passport-full.bin: 2853056 bytes; SHA-256 `00070c9162865f11ff985d2f80
 FoloToy-AI-Passport.bin: 2787520 bytes; SHA-256 `98c9484aa74fbd94ed13e9e6b5d93f0276171257831315c20d1dab03d9798f1a`.
 
 Source: https://github.com/FelixXin/qimen-passport/tree/v0.6.1
+
+Community project 1758: 0.6.1 submitted as revision 4144, pending review. Server readback matches the full-image checksum, both user guides and both changelogs. Approved 0.5.0 remains public until approval.
