@@ -63,6 +63,8 @@ bool reader_local_parse(const char *line, reader_local_command_t *c) {
     if (!strcmp(fields[0], "HELLO") && count == 1) { c->op = LOCAL_HELLO; return true; }
     if (!strcmp(fields[0], "STATS") && count == 1) {c->op=LOCAL_STATS;return true;}
     if (!strcmp(fields[0], "GET") && count == 1) { c->op = LOCAL_GET; return true; }
+    if(!strcmp(fields[0],"NETINFO")&&count==1){c->op=LOCAL_NET_INFO;return true;}
+    if(!strcmp(fields[0],"RECONNECT")&&count==1){c->op=LOCAL_RECONNECT;return true;}
     if (!strcmp(fields[0], "NET") && count==1) {c->op=LOCAL_NET;return true;}
     if (!strcmp(fields[0], "CAST") && count==1) {c->op=LOCAL_CAST;return true;}
     if (!strcmp(fields[0], "RADIO") && count==2) {
@@ -72,7 +74,8 @@ bool reader_local_parse(const char *line, reader_local_command_t *c) {
     if ((!strcmp(fields[0],"WIFI") || !strcmp(fields[0],"AP")) && count==3) {
         bool ap=!strcmp(fields[0],"AP");
         if(!hex_text(fields[1],c->ssid,sizeof(c->ssid)) || !hex_text(fields[2],c->password,sizeof(c->password)) ||
-           !reader_radio_credentials(c->ssid,c->password,ap))return false;
+           !reader_radio_credentials(ap&&!c->ssid[0]?"Qimen-Passport":c->ssid,ap&&!c->password[0]?"12345678":c->password,ap))return false;
+        if(ap&&!c->ssid[0]&&!c->password[0])return false;
         c->op=ap?LOCAL_AP:LOCAL_WIFI;return true;
     }
     if (!strcmp(fields[0], "TIME") && count == 2) {

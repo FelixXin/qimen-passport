@@ -24,8 +24,9 @@ bool qimen_sleep_restore(const qimen_sleep_snapshot_t *s,reader_clock_t *clock,r
  if(!s||!clock||!chart||!n||now<0||now>INT64_MAX-300000||s->rtc_us<0||rtc<s->rtc_us||s->magic!=SLEEP_MAGIC||s->version!=1||s->checksum!=crc(s))return false;
  if((unsigned)s->source>READER_CLOCK_LOCAL||s->clock_us<0||s->clock_us>INT64_MAX-(rtc-s->rtc_us))return false;
  const qimen_navigation_t *v=&s->navigation;
- if(v->page>Q_CAST_TIME||v->selected>10||v->palace>8||v->symbol>6||v->brightness>3||v->field>4||v->cover_cursor>4)return false;
+ if(v->page>Q_WIFI_DETAIL||v->selected>10||v->palace>8||v->symbol>6||v->brightness>3||v->field>4||v->cover_cursor>4)return false;
  int64_t total=s->clock_us+(rtc-s->rtc_us);
+ if(v->page==Q_WIFI_DETAIL&&(v->selected<1||v->selected>6))return false;
  if(s->source>=READER_CLOCK_NETWORK&&(total<INT64_C(1704038400000000)||total>=INT64_C(4102416000000000)))return false;
  reader_qimen_t restored={0};if(s->chart_valid&&!reader_qimen_cast(s->chart_epoch,&restored))return false;
  reader_clock_t recovered={0};recovered.source=s->source;

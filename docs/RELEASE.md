@@ -1,17 +1,17 @@
-# 0.5.0 changes since 0.4.1
-- Double-OK enters deep sleep: shut down the display, radios and peripherals, stop application work and retain internal timekeeping without periodic wakeups.
-- Any right-side key wakes the device and restores the page, frozen chart and elapsed clock, while consuming the wake gesture.
-- Double-Up still shows the cover; Cast now moves to the first settings action.
-- Wait for complete radio shutdown and key release; report preparation failures and recover after terminal peripheral failures.
-- Suspend unused audio circuitry and keep recovery state without per-sleep storage writes, preserving existing data and network settings.
-- Sleep, wake, continuing time and cover operation passed physical acceptance. Standby current and battery life remain unmeasured.
+# 0.6.1 changes since community 0.5.0
 
-Install the full merged image at `0x0`. An application-only update at `0x10000` requires verification of the unchanged partition table. A first full installation may replace firmware/settings; back up first.
+- Make Wi-Fi rows selectable with working detail pages; show hotspot client count, router names, connection/retry/failure state, IP and signal, and reconnect saved credentials.
+- Default the hotspot password to 12345678; edit hotspot name/password independently on the webpage and restart Wi-Fi to apply. Preserve saved custom settings.
+- Add Network time details with results, last success in this boot and manual retry; attempt synchronization after external Wi-Fi connects.
+- Refresh webpage network state about every three seconds. Save new credentials only after matching IP acquisition, retaining old settings on failure.
+- Fix deep sleep failing after external Wi-Fi connects; retain continuing time and key wake.
+- Rewrite Chinese/English instructions around first use, controls, charts, meanings, networking, covers and sleep.
+- Network pages, time synchronization, connected-Wi-Fi sleep and wake passed physical acceptance.
 
-Full image: 2837392 bytes; SHA-256 `1d2e6ed02b0f95c32d3914cafd79388024a30fd789f3a556f9368bb6d6538c67`.
+First installation uses the full image at 0x0 and may replace firmware/settings. Data-preserving application updates at 0x10000 require verified matching partitions. Standby current, endurance and long-term drift are unmeasured.
 
-Application: 2771856 bytes; SHA-256 `68c03ace91dc679ad778e8cf6fe433094549e38d68aca22e273db799f81dbc88`.
+FoloToy-AI-Passport-full.bin: 2853056 bytes; SHA-256 `00070c9162865f11ff985d2f80453ec5cc6172604629560c6e6f547da82825b6`.
 
-Source: https://github.com/FelixXin/qimen-passport/tree/v0.5.0 .
+FoloToy-AI-Passport.bin: 2787520 bytes; SHA-256 `98c9484aa74fbd94ed13e9e6b5d93f0276171257831315c20d1dab03d9798f1a`.
 
-Community project 1758 / revision 4106: 0.5.0 submitted and pending review. The server-reported full-image checksum matches the artifact above. Approved 0.4.1 remains public until this update is approved.
+Source: https://github.com/FelixXin/qimen-passport/tree/v0.6.1

@@ -16,7 +16,8 @@ bool qimen_navigation_turn(qimen_navigation_t *n,int direction) {
  return true;
 }
 static qimen_action_t back(qimen_navigation_t *n) {
- if(n->page==Q_SYMBOL)n->page=Q_DETAIL;
+ if(n->page==Q_WIFI_DETAIL)n->page=Q_WIFI;
+ else if(n->page==Q_SYMBOL)n->page=Q_DETAIL;
  else if(n->page==Q_DETAIL||n->page==Q_MENU)n->page=Q_GRID;
  else {unsigned source=n->page;n->page=Q_MENU;n->selected=source==Q_COVER?1:source==Q_CLOCK?2:source==Q_WIFI?3:source==Q_BLE?4:source==Q_BRIGHT?5:source==Q_CAST_TIME?7:6;}
  return A_DRAW;
@@ -34,6 +35,7 @@ qimen_action_t qimen_navigation_key(qimen_navigation_t *n,qimen_key_t key,qimen_
  if(n->wake_guard){if(n->pressed||now<n->quiet_until){n->quiet_until=now+300000;return A_NONE;}n->wake_guard=false;}
  /* Cover selection responds to each physical press, not delayed click grouping. */
  if(n->page==Q_COVER&&event==E_PRESS&&key!=K_OK){n->cover_cursor=(n->cover_cursor+(key==K_UP?4:1))%5;return A_DRAW;}
+ if(n->page==Q_WIFI&&event==E_PRESS&&key!=K_OK){n->selected=(n->selected+(key==K_UP?6:1))%7;return A_DRAW;}
  if(event==E_PRESS||event==E_RELEASE)return A_NONE;
  if(event==E_DOUBLE&&key==K_OK)return A_DEEP_SLEEP;
  if(event==E_DOUBLE&&key==K_UP&&n->page==Q_GRID){n->sleep=true;return A_DRAW;}
@@ -53,6 +55,11 @@ qimen_action_t qimen_navigation_key(qimen_navigation_t *n,qimen_key_t key,qimen_
   }
   return A_NONE;
  }
+ if(n->page==Q_WIFI_DETAIL){
+  if(event==E_CLICK&&key==K_OK)return n->selected==5?A_WIFI_RECONNECT:n->selected==6?A_NETWORK_TIME:back(n);
+  if((event==E_CLICK||event==E_LONG||event==E_DOUBLE)&&key!=K_OK)return key==K_UP?A_SCROLL_UP:A_SCROLL_DOWN;
+  return A_NONE;
+ }
  if(n->page==Q_HELP){
   if(event==E_CLICK&&key==K_OK)return back(n);
   if((event==E_CLICK||event==E_LONG)&&key!=K_OK)return key==K_UP?A_SCROLL_UP:A_SCROLL_DOWN;
@@ -65,7 +72,7 @@ qimen_action_t qimen_navigation_key(qimen_navigation_t *n,qimen_key_t key,qimen_
  if(n->page==Q_DETAIL){if(key==K_UP)return back(n);n->page=Q_SYMBOL;n->symbol=0;n->read_end=false;n->symbol_tabs=true;return A_DRAW;}
  if(n->page==Q_COVER)return key==K_OK?A_STYLE:A_NONE;
  if(n->page==Q_BRIGHT){if(key==K_OK)return back(n);n->brightness=(n->brightness+(key==K_UP?1:3))%4;return A_PREF;}
- if(n->page==Q_WIFI)return key==K_OK?A_WIFI:A_NONE;
+ if(n->page==Q_WIFI){if(key!=K_OK)return A_NONE;if(n->selected==0)return A_WIFI;n->page=Q_WIFI_DETAIL;return A_DRAW;}
  if(n->page==Q_BLE)return key==K_OK?A_BLE:A_NONE;
  if(n->page==Q_CLOCK||n->page==Q_CAST_TIME){
   if(key==K_OK){if(n->field<4){n->field++;return A_DRAW;}return n->page==Q_CAST_TIME?A_CAST_TIME:A_TIME;}
@@ -80,7 +87,7 @@ qimen_action_t qimen_navigation_key(qimen_navigation_t *n,qimen_key_t key,qimen_
    case 0:n->page=Q_GRID;return A_CAST;
    case 1:n->page=Q_COVER;return A_DRAW;
    case 2:n->page=Q_CLOCK;n->field=0;return A_DRAW;
-   case 3:n->page=Q_WIFI;return A_DRAW;
+   case 3:n->page=Q_WIFI;n->selected=0;return A_DRAW;
    case 4:n->page=Q_BLE;return A_BLE;
    case 5:n->page=Q_BRIGHT;return A_DRAW;
    case 6:n->page=Q_HELP;return A_DRAW;

@@ -22,5 +22,6 @@ int main(void){
  reader_clock_init(&c);memset(&q,0,sizeof(q));assert(qimen_sleep_save(&s,&c,&q,&n,0,0));assert(qimen_sleep_restore(&s,&out,&chart,&restored,0,86400000000LL));assert(out.source==READER_CLOCK_UNSET&&!chart.valid);
  assert(reader_clock_manual(&c,23,59,0));assert(qimen_sleep_save(&s,&c,&q,&n,0,0));assert(qimen_sleep_restore(&s,&out,&chart,&restored,0,61000000));reader_clock_read(&out,0,&v);assert(!v.has_date&&v.hour==0&&v.minute==0&&v.second==1);
  assert(reader_clock_local(&c,1735660799LL,0));assert(qimen_sleep_save(&s,&c,&q,&n,0,0));assert(qimen_sleep_restore(&s,&out,&chart,&restored,0,2000000));reader_clock_read(&out,0,&v);assert(v.year==2025&&v.month==1&&v.day==1&&v.second==1);
+ n.page=Q_WIFI_DETAIL;n.selected=6;assert(qimen_sleep_save(&s,&c,&q,&n,0,0));assert(qimen_sleep_restore(&s,&out,&chart,&restored,0,2000000));assert(restored.page==Q_WIFI_DETAIL&&restored.selected==6);
  puts("Sleep snapshot: CRC corruption, subsecond continuity, leap/year boundaries, historical chart, unset/manual clock and repeat sleep PASS");
 }

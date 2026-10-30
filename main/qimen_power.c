@@ -31,10 +31,11 @@ bool qimen_power_restore(reader_clock_t *clock,reader_qimen_t *chart,qimen_navig
 }
 bool qimen_power_request(void){
  if(pending||!reader_network_sleep_request())return false;
+ ESP_LOGI("qimen_power","Sleep requested; waiting for radio shutdown and key release");
  pending=true;aborted=false;deadline=esp_timer_get_time()+10000000;return true;
 }
 bool qimen_power_pending(void){return pending&&!aborted;}
-static int cancel(void){reader_network_sleep_cancel();pending=false;aborted=false;return -1;}
+static int cancel(const char *step){ESP_LOGE("qimen_power","Sleep refused at %s; remaining awake",step);reader_network_sleep_cancel();pending=false;aborted=false;return -1;}
 static void restart_after_failure(const char *step,esp_err_t error){
  ESP_LOGE("qimen_power","Sleep preparation failed at %s: %s; restarting",step,esp_err_to_name(error));
  recover_failed_entry=true;esp_restart();
@@ -47,16 +48,16 @@ int qimen_power_poll(const reader_clock_t *clock,const reader_qimen_t *chart,con
   if(!radio)return -1;
  }
  if(!radio)return 0;
- if(aborted||radio<0)return cancel();
+ if(aborted||radio<0)return cancel("radio shutdown");
  int mv=bsp_button_read_mv();
- if(mv<0)return cancel();
+ if(mv<0)return cancel("key voltage");
  if(mv<BSP_BTN_MV_RELEASED_MIN)return 0;
  /* Arm GPIO only. No periodic wakeup, flash writes or network auto-start while asleep. */
  esp_err_t error=esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
  if(error==ESP_OK)error=esp_deep_sleep_enable_gpio_wakeup(1ULL<<BSP_BTN_GPIO,ESP_GPIO_WAKEUP_GPIO_LOW);
- if(error!=ESP_OK)return cancel();
- if(!bsp_lvgl_lock(1000)){esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);return cancel();}
- if(!qimen_sleep_save(&retained,clock,chart,n,esp_timer_get_time(),rtc_now())){bsp_lvgl_unlock();return cancel();}
+ if(error!=ESP_OK)return cancel("GPIO wake source");
+ if(!bsp_lvgl_lock(1000)){esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);return cancel("display lock");}
+ if(!qimen_sleep_save(&retained,clock,chart,n,esp_timer_get_time(),rtc_now())){bsp_lvgl_unlock();return cancel("clock snapshot");}
  /* From button hand-off onward the peripherals are terminal: reboot on failure. */
  int level=0;error=bsp_button_prepare_deep_sleep(&level);
  if(error!=ESP_OK||level!=1){restart_after_failure("keys",error==ESP_OK?ESP_ERR_INVALID_STATE:error);return 0;}

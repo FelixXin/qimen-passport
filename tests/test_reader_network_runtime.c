@@ -5,6 +5,13 @@
 const char *WIFI_EVENT="wifi";
 const char *IP_EVENT="ip";
 static unsigned step,fail_at,live_netifs,saved_credentials;
+static int64_t test_now;
+static unsigned clients;
+static int signal_dbm=-52;
+static bool status_failure;
+static reader_network_credentials_t saved_station;
+int64_t esp_timer_get_time(void){return test_now;}
+esp_err_t esp_wifi_ap_get_sta_list(wifi_sta_list_t *out){out->num=(int)clients;return status_failure?ESP_FAIL:ESP_OK;}
 static bool cover_allow,cover_finish_ok=true,cover_aborted;
 static size_t cover_received,body_received;
 static int cover_fail_read;
@@ -16,6 +23,7 @@ static char associated_ssid[33]="old";
 static network_work_t queued;
 static bool driver_live,running,http_live,handlers[2],fail_stop;
 static esp_netif_t interfaces[2];
+static int registered_event_id[2];
 static esp_err_t next(void) {return ++step==fail_at?ESP_ERR_NO_MEM:ESP_OK;}
 esp_err_t esp_netif_init(void) {return next();}
 esp_err_t esp_event_loop_create_default(void) {return next();}
@@ -32,10 +40,10 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *cfg) {(void)cfg;assert(!driver
 esp_err_t esp_wifi_deinit(void) {assert(driver_live&&!running&&!handlers[0]&&!handlers[1]);driver_live=false;return ESP_OK;}
 esp_err_t esp_event_handler_instance_register(esp_event_base_t base,int32_t id,event_callback_t callback,void *arg,esp_event_handler_instance_t *instance) {
     (void)id;(void)callback;(void)arg;unsigned slot=!strcmp(base,IP_EVENT);assert(!handlers[slot]);
-    esp_err_t e=next();if(e==ESP_OK){handlers[slot]=true;*instance=&handlers[slot];}return e;
+    esp_err_t e=next();if(e==ESP_OK){handlers[slot]=true;registered_event_id[slot]=id;*instance=&handlers[slot];}return e;
 }
 esp_err_t esp_event_handler_instance_unregister(esp_event_base_t base,int32_t id,esp_event_handler_instance_t instance) {
-    (void)id;unsigned slot=!strcmp(base,IP_EVENT);assert(handlers[slot]&&instance==&handlers[slot]);handlers[slot]=false;return ESP_OK;
+    (void)id;unsigned slot=!strcmp(base,IP_EVENT);assert(handlers[slot]&&instance==&handlers[slot]&&registered_event_id[slot]==id);handlers[slot]=false;return ESP_OK;
 }
 esp_err_t esp_wifi_set_storage(int value) {(void)value;return next();}
 esp_err_t esp_wifi_set_mode(int value) {(void)value;return next();}
@@ -44,13 +52,13 @@ esp_err_t esp_wifi_start(void) {assert(!running);esp_err_t e=next();running=e==E
 esp_err_t esp_wifi_stop(void) {assert(running);if(fail_stop)return ESP_FAIL;running=false;return ESP_OK;}
 esp_err_t esp_wifi_connect(void) {return ESP_OK;}
 esp_err_t esp_wifi_disconnect(void) {return ESP_OK;}
-esp_err_t esp_wifi_sta_get_ap_info(wifi_ap_record_t *p) {strcpy((char*)p->ssid,associated_ssid);return ESP_OK;}
+esp_err_t esp_wifi_sta_get_ap_info(wifi_ap_record_t *p) {strcpy((char*)p->ssid,associated_ssid);p->rssi=(int8_t)signal_dbm;return status_failure?ESP_FAIL:ESP_OK;}
 esp_err_t httpd_start(httpd_handle_t *server_out,const httpd_config_t *cfg) {(void)cfg;assert(!http_live);esp_err_t e=next();if(e==ESP_OK){http_live=true;*server_out=&http_live;}return e;}
 esp_err_t httpd_stop(httpd_handle_t h) {assert(h&&http_live);http_live=false;return ESP_OK;}
 esp_err_t httpd_register_uri_handler(httpd_handle_t h,const httpd_uri_t *route) {(void)h;(void)route;return next();}
-esp_err_t reader_storage_network_load(reader_network_credentials_t *out) {memset(out,0,sizeof(*out));return ESP_OK;}
+esp_err_t reader_storage_network_load(reader_network_credentials_t *out) {*out=saved_station;return ESP_OK;}
 esp_err_t reader_storage_network_save(const char *ssid,const char *password) {
-    assert(!strcmp(ssid,"new-network")&&!strcmp(password,"new-password"));saved_credentials++;return ESP_OK;
+    assert(!strcmp(ssid,"new-network")&&!strcmp(password,"new-password"));saved_credentials++;saved_station.configured=true;strcpy(saved_station.ssid,ssid);strcpy(saved_station.password,password);return ESP_OK;
 }
 esp_err_t reader_storage_network_forget(void) {return ESP_OK;}
 bool qimen_cover_store_acquire(qimen_cover_view_t *v){memset(v,0,sizeof(*v));v->pixels=cover_get_active?cover_read_pixels:NULL;return true;}
@@ -82,6 +90,13 @@ static void reset(void) {
     assert(!initialized&&!started&&!ap_netif&&!sta_netif&&!cleanup_pending&&!reconfiguring);
     memset(&info,0,sizeof(info));strcpy(info.ap,"test-hotspot");strcpy(info.password,"password123");step=0;
 }
+static hotspot_config_t saved_ap,staged_ap;
+static bool have_ap,ap_commit_failure;
+esp_err_t nvs_open(const char *ns,int mode,nvs_handle_t *out){(void)mode;assert(!strcmp(ns,"qimen_net"));*out=1;return ESP_OK;}
+esp_err_t nvs_get_blob(nvs_handle_t h,const char *key,void *out,size_t *size){(void)h;assert(!strcmp(key,"ap_config"));if(!have_ap)return ESP_FAIL;assert(*size>=sizeof(saved_ap));memcpy(out,&saved_ap,sizeof(saved_ap));*size=sizeof(saved_ap);return ESP_OK;}
+esp_err_t nvs_set_blob(nvs_handle_t h,const char *key,const void *data,size_t size){(void)h;assert(!strcmp(key,"ap_config")&&size==sizeof(staged_ap));memcpy(&staged_ap,data,size);return ESP_OK;}
+esp_err_t nvs_commit(nvs_handle_t h){(void)h;if(ap_commit_failure)return ESP_FAIL;saved_ap=staged_ap;have_ap=true;return ESP_OK;}
+void nvs_close(nvs_handle_t h){(void)h;}
 int main(void) {
     reset();fail_at=0;assert(enable_wifi(true)==ESP_OK);unsigned stages=step;
     assert(info.enabled&&info.portal&&running&&http_live);assert(release_wifi()==ESP_OK);
@@ -102,7 +117,7 @@ int main(void) {
     assert(enable_wifi(false)==ESP_OK);
     strcpy((char*)station.sta.ssid,"new-network");strcpy((char*)station.sta.password,"new-password");
     strcpy(expected_ssid,"new-network");strcpy(pending_ssid,"new-network");strcpy(pending_password,"new-password");
-    pending_credentials=true;operation_id=info.request_id=9;info.connecting=true;
+    pending_credentials=true;operation_id=info.request_id=9;info.connecting=true;retry_allowed=true;strcpy(info.station_ssid,"new-network");
     process_work(&resume);
     assert(!strcmp((char*)station.sta.ssid,"new-network")&&!strcmp(expected_ssid,"new-network"));
     assert(pending_credentials&&!saved_credentials&&info.request_id==9&&info.portal);
@@ -110,7 +125,7 @@ int main(void) {
     wifi_event(NULL,IP_EVENT,IP_EVENT_STA_GOT_IP,&address);assert(!info.connected);
     strcpy(associated_ssid,"new-network");wifi_event(NULL,IP_EVENT,IP_EVENT_STA_GOT_IP,&address);
     assert(info.connected&&queued.kind==NET_CONNECTED);process_work(&queued);
-    assert(saved_credentials==1&&!pending_credentials&&info.provisioned&&info.request_done);
+    assert(saved_credentials==1&&!pending_credentials&&info.provisioned&&info.request_done);memset(&saved_station,0,sizeof(saved_station));
     assert(release_wifi()==ESP_OK);reset();
     bluetooth_active=true;unsigned allocations=step;
     network_work_t enable={.kind=NET_ENABLE};process_work(&enable);assert(step==allocations&&!info.enabled);
@@ -136,5 +151,30 @@ int main(void) {
     assert(enable_wifi(true)==ESP_OK);fail_stop=true;assert(reader_network_sleep_request());process_work(&sleeping);
     assert(reader_network_sleep_result()==-1&&driver_live);reader_network_sleep_cancel();fail_stop=false;assert(release_wifi()==ESP_OK);
     sleep_ble_failure=true;assert(reader_network_sleep_request());process_work(&sleeping);assert(reader_network_sleep_result()==-1);reader_network_sleep_cancel();sleep_ble_failure=false;
+    load_hotspot_config();assert(!strcmp(info.password,"12345678")&&!strcmp(info.ap,"Qimen-Passport"));
+    assert(reader_network_set_ap("custom-hotspot","new-pass123"));assert(!strcmp(info.ap,"custom-hotspot"));
+    assert(reader_network_set_ap("","12345678"));assert(!strcmp(info.ap,"custom-hotspot"));
+    memset(&info,0,sizeof(info));load_hotspot_config();assert(!strcmp(info.ap,"custom-hotspot")&&!strcmp(info.password,"12345678"));
+    ap_commit_failure=true;assert(!reader_network_set_ap("","rejected-pass"));assert(!strcmp(info.password,"12345678"));ap_commit_failure=false;
+    assert(reader_network_set_ap("","persistent-pass"));memset(&info,0,sizeof(info));load_hotspot_config();assert(!strcmp(info.password,"persistent-pass"));
+    assert(!reader_network_set_ap("","short")&&!strcmp(info.ap,"custom-hotspot"));
+    assert(reader_network_set_ap("renamed-hotspot",""));assert(!strcmp(info.password,"persistent-pass")&&!strcmp(info.ap,"renamed-hotspot"));
+    memset(&info,0,sizeof(info));load_hotspot_config();assert(!strcmp(info.password,"persistent-pass")&&!strcmp(info.ap,"renamed-hotspot"));
+    assert(enable_wifi(true)==ESP_OK);clients=2;network_work_t status={.kind=NET_STATUS};process_work(&status);assert(info.ap_clients==2);
+    clients=1;wifi_event(NULL,WIFI_EVENT,WIFI_EVENT_AP_STADISCONNECTED,NULL);assert(queued.kind==NET_STATUS);process_work(&queued);assert(info.ap_clients==1);
+    status_failure=true;process_work(&status);assert(info.ap_clients==-1);status_failure=false;
+    strcpy(saved_station.ssid,"new-network");strcpy(saved_station.password,"new-password");saved_station.configured=true;
+    network_work_t reconnect={.kind=NET_RECONNECT,.request=42};unsigned old_saves=saved_credentials;process_work(&reconnect);
+    assert(info.request_id==42&&info.connecting&&!pending_credentials&&!strcmp(info.station_ssid,"new-network"));
+    wifi_event(NULL,IP_EVENT,IP_EVENT_STA_GOT_IP,&address);process_work(&queued);assert(info.connected&&info.provisioned&&saved_credentials==old_saves);
+    wifi_event(NULL,IP_EVENT,IP_EVENT_STA_LOST_IP,NULL);assert(!info.connected&&info.connecting&&info.last_error==NET_ERROR_NO_IP);
+    wifi_event(NULL,IP_EVENT,IP_EVENT_STA_GOT_IP,&address);process_work(&queued);assert(info.connected&&info.last_error==NET_ERROR_NONE);
+    signal_dbm=-80;process_work(&status);assert(info.rssi==-80&&!strcmp(reader_network_signal_text(&info),"弱"));
+    wifi_event_sta_disconnected_t lost={.reason=202};wifi_event(NULL,WIFI_EVENT,WIFI_EVENT_STA_DISCONNECTED,&lost);assert(info.connecting&&!info.connected&&info.disconnect_reason==202);
+    process_work(&queued);assert(info.retry_count==1&&reader_network_state(&info)==3);assert(!strcmp(reader_network_error_text(&info),"认证失败，请检查密码"));
+    test_now=connect_deadline+1;process_work(&status);assert(reader_network_state(&info)==5&&info.last_error==NET_ERROR_TIMEOUT&&!retry_allowed);
+    wifi_event(NULL,IP_EVENT,IP_EVENT_STA_GOT_IP,&address);assert(!info.connected);
+        wifi_event(NULL,IP_EVENT,IP_EVENT_STA_LOST_IP,NULL);assert(!info.connected);
+    assert(release_wifi()==ESP_OK);memset(&saved_station,0,sizeof(saved_station));reset();assert(!reader_network_reconnect());
     printf("Reader Wi-Fi: %u allocation/register/start/route fault points, cleanup retry and BLE/web cycle PASS\n",stages);
 }

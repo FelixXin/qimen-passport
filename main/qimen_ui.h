@@ -5,10 +5,12 @@
 #include "reader_network.h"
 #include "reader_ble.h"
 #include "qimen_cover_store.h"
+enum {Q_SYNC_IDLE,Q_SYNC_WAIT,Q_SYNC_OK,Q_SYNC_FAILED,Q_SYNC_OFFLINE};
 typedef struct {
  const qimen_navigation_t *navigation;const reader_qimen_t *chart;
  reader_clock_value_t clock;reader_network_info_t network;reader_ble_info_t bluetooth;
  qimen_cover_view_t cover;
+ unsigned network_sync_state;int64_t last_network_sync;
  int battery;const char *notice;
 } qimen_view_t;
 /* Caller holds BSP LVGL lock. */

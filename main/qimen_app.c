@@ -30,12 +30,14 @@ static reader_local_frame_t usb_frame;
 static QueueHandle_t keys;static nvs_handle_t settings;
 static bool have_settings,wifi_wanted,ble_pending,radio_restore,sntp_started;
 static int64_t ble_deadline;
+static uint32_t reconnect_notice;
+static unsigned network_sync_state;static int64_t last_network_sync,sync_deadline,next_sync_attempt;static bool sync_requested;
 static char notice[96];
 static int cached_battery=-1;static int64_t next_battery;
 typedef struct {bsp_btn_t button;bsp_btn_ev_t event;} key_message_t;
 static void render(void){
  int64_t now_us=esp_timer_get_time();if(now_us>=next_battery){cached_battery=bsp_battery_soc();next_battery=now_us+30000000;}
- qimen_view_t v={.navigation=&navigation,.chart=&chart,.notice=notice,.battery=cached_battery};
+ qimen_view_t v={.navigation=&navigation,.chart=&chart,.notice=notice,.battery=cached_battery,.network_sync_state=network_sync_state,.last_network_sync=last_network_sync};
  reader_clock_read(&clock_model,esp_timer_get_time(),&v.clock);reader_network_info(&v.network);reader_ble_info(&v.bluetooth);
  qimen_cover_view_t cover_view;
  if(qimen_cover_store_acquire(&cover_view)){v.cover=cover_view;bool rendered=false;
@@ -66,6 +68,8 @@ static void local(const char *line,const reader_ble_message_t *ble,uint32_t toke
  case LOCAL_GET:{redraw=false;reader_clock_value_t now;reader_clock_read(&clock_model,esp_timer_get_time(),&now);snprintf(out,sizeof(out),"QIMEN\tOK\tGET\t%lld",(long long)(now.has_date?now.epoch_utc:0));break;}
  case LOCAL_TIME:ok=reader_clock_local(&clock_model,c.epoch,esp_timer_get_time());snprintf(out,sizeof(out),"QIMEN\t%s\tTIME",ok?"OK":"ERR");if(ok&&!chart.valid)cast();break;
  case LOCAL_CAST:cast();ok=chart.valid;snprintf(out,sizeof(out),"QIMEN\t%s\tCAST",ok?"OK":"ERR");break;
+ case LOCAL_NET_INFO:{redraw=false;reader_network_info_t n;reader_network_info(&n);if(!reader_network_status_line(&n,out,sizeof(out)))snprintf(out,sizeof(out),"QIMEN\tERR\tLENGTH");break;}
+ case LOCAL_RECONNECT:{reader_network_info_t net;reader_network_info(&net);if(!net.saved_ssid[0]){snprintf(out,sizeof(out),"QIMEN\tERR\tNO_SAVED");break;}uint32_t id=reader_network_reconnect();snprintf(out,sizeof(out),"QIMEN\t%s\tRECONNECT\t%lu",id?"OK":"ERR",(unsigned long)id);if(id){wifi_wanted=true;if(have_settings){esp_err_t err=nvs_set_u8(settings,"wifi",1);if(err==ESP_OK)err=nvs_commit(settings);if(err!=ESP_OK)strcpy(notice,"网络偏好保存失败");}}break;}
  case LOCAL_NET:{redraw=false;reader_network_info_t n;reader_network_info(&n);snprintf(out,sizeof(out),"QIMEN\tOK\tNET\t%u\t%u\t%u\t%u\t%lu\t%s\t%s",n.enabled,n.connected,n.connecting,n.provisioned,(unsigned long)n.request_id,reader_radio_phase(n.request_id,n.request_done,n.connected,n.provisioned),n.ip);break;}
  case LOCAL_WIFI:{uint32_t id=reader_network_configure(c.ssid,c.password,ble?ble->generation:0);if(id){wifi_wanted=true;if(have_settings){esp_err_t err=nvs_set_u8(settings,"wifi",1);if(err==ESP_OK)err=nvs_commit(settings);if(err!=ESP_OK)strcpy(notice,"网络偏好保存失败");}}snprintf(out,sizeof(out),"QIMEN\t%s\tWIFI\t%lu",id?"OK":"ERR",(unsigned long)id);break;}
  case LOCAL_AP:ok=reader_network_set_ap(c.ssid,c.password);snprintf(out,sizeof(out),"QIMEN\t%s\tAP",ok?"OK":"ERR");break;
@@ -98,6 +102,7 @@ static void input(key_message_t k){
  switch(action){
  case A_DEEP_SLEEP:
   ble_pending=false;radio_restore=false;reader_ble_close();
+  sync_requested=false;
   if(sntp_started){esp_netif_sntp_deinit();sntp_started=false;}
   if(qimen_power_request())strcpy(notice,"正在关闭，请稍候");else strcpy(notice,"操作失败，请重试");
   break;
@@ -106,6 +111,9 @@ static void input(key_message_t k){
  case A_STYLE:if(qimen_cover_store_style(navigation.cover_cursor))navigation.sleep=true;else strcpy(notice,"请先上传自定义封面");break;
  case A_PREV:case A_NEXT:if(!reader_qimen_step(&chart,action==A_PREV?-1:1))strcpy(notice,"请校时或已到日期边界");break;
  case A_SCROLL_UP:case A_SCROLL_DOWN:{int dir=action==A_SCROLL_DOWN?1:-1;bool edge=false;if(bsp_lvgl_lock(100)){edge=qimen_ui_scroll(dir);bsp_lvgl_unlock();}if(edge&&qimen_navigation_turn(&navigation,dir))render();return;}
+ case A_NETWORK_TIME:{reader_network_info_t net;reader_network_info(&net);if(!net.connected){network_sync_state=Q_SYNC_OFFLINE;strcpy(notice,"请先连接外部 Wi-Fi");}else{sync_requested=true;network_sync_state=Q_SYNC_WAIT;sync_deadline=esp_timer_get_time()+30000000;}break;}
+ case A_WIFI_RECONNECT:{reader_network_info_t net;reader_network_info(&net);if(!net.saved_ssid[0]){strcpy(notice,"请先在网页设置网络");break;}
+  uint32_t id=reader_network_reconnect();if(id){reconnect_notice=id;wifi_wanted=true;strcpy(notice,"正在连接，请稍候");if(have_settings){esp_err_t err=nvs_set_u8(settings,"wifi",1);if(err==ESP_OK)err=nvs_commit(settings);if(err!=ESP_OK)strcpy(notice,"网络偏好保存失败");}}else strcpy(notice,"网络任务忙，请重试");break;}
  case A_WIFI:{bool wanted=!wifi_wanted;if(reader_network_enable(wanted)){wifi_wanted=wanted;if(have_settings){esp_err_t err=nvs_set_u8(settings,"wifi",wanted);if(err==ESP_OK)err=nvs_commit(settings);if(err!=ESP_OK)strcpy(notice,"网络偏好保存失败");}}else strcpy(notice,"网络任务忙，请重试");break;}
  case A_BLE:begin_ble();break;
  case A_TIME:{int64_t epoch;if(qimen_navigation_epoch(&navigation,&epoch)&&reader_clock_local(&clock_model,epoch,esp_timer_get_time())){navigation.page=Q_GRID;cast();}else strcpy(notice,"日期无效，请调整");break;}
@@ -138,11 +146,26 @@ void app_main(void){
   reader_remote_message_t remote;if(reader_remote_next(&remote)){local(remote.line,NULL,remote.token);memset(&remote,0,sizeof(remote));}
   reader_ble_message_t ble_message;while(reader_ble_next(&ble_message)){local(ble_message.line,&ble_message,0);memset(&ble_message,0,sizeof(ble_message));}
   if(usb){uint8_t bytes[64];int count=read(STDIN_FILENO,bytes,sizeof(bytes));for(int i=0;i<count;i++){int status=reader_local_feed(&usb_frame,bytes[i]);if(status==1)local(usb_frame.line,NULL,0);else if(status<0)printf("QIMEN\tERR\tLENGTH\n");}memset(bytes,0,sizeof(bytes));}
-  int64_t now=esp_timer_get_time();if(navigation.intro&&now>=intro_until){navigation.intro=false;render();}reader_ble_tick(now);reader_network_info_t net;reader_network_info(&net);reader_ble_info_t ble;reader_ble_info(&ble);
+  int64_t now=esp_timer_get_time();if(navigation.intro&&now>=intro_until){navigation.intro=false;render();}reader_ble_tick(now);reader_network_tick(now);reader_network_info_t net;reader_network_info(&net);if(reconnect_notice&&net.request_id==reconnect_notice&&!net.connecting&&(net.connected||net.last_error)){notice[0]=0;reconnect_notice=0;}reader_ble_info_t ble;reader_ble_info(&ble);
   if(!qimen_power_pending()&&ble_pending&&(net.ble_ready||now>=ble_deadline)){ble_pending=false;if(!net.ble_ready||net.ble_prepare_failed||!reader_ble_open(now))strcpy(notice,"蓝牙启动失败，请重试");else notice[0]=0;render();}
   if(!qimen_power_pending()&&radio_restore&&!ble_pending&&!ble.initialized&&!ble.stopping&&!ble.window){if(!wifi_wanted||reader_network_resume_web())radio_restore=false;}
-  if(!qimen_power_pending()&&net.connected&&!sntp_started){esp_sntp_config_t config=ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");config.start=true;sntp_started=esp_netif_sntp_init(&config)==ESP_OK;}
-  if(!qimen_power_pending()&&net.connected&&sntp_started&&esp_netif_sntp_sync_wait(0)==ESP_OK){time_t utc=time(NULL);if(utc>=1704038400&&reader_clock_sync(&clock_model,utc,now)&&!chart.valid){cast();render();}}
+  if(!qimen_power_pending()&&net.connected){
+   bool requested=sync_requested||!connected_before;sync_requested=false;
+   if(!sntp_started&&(requested||esp_timer_get_time()>=next_sync_attempt)){
+    next_sync_attempt=esp_timer_get_time()+30000000;
+    esp_sntp_config_t config=ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");config.start=true;sntp_started=esp_netif_sntp_init(&config)==ESP_OK;
+    network_sync_state=sntp_started?Q_SYNC_WAIT:Q_SYNC_FAILED;sync_deadline=esp_timer_get_time()+30000000;
+   }else if(requested){
+    (void)esp_netif_sntp_sync_wait(0);network_sync_state=esp_netif_sntp_start()==ESP_OK?Q_SYNC_WAIT:Q_SYNC_FAILED;sync_deadline=esp_timer_get_time()+30000000;
+   }
+   if(sntp_started&&esp_netif_sntp_sync_wait(0)==ESP_OK){
+    time_t utc=time(NULL);if(utc>=1704038400&&reader_clock_sync(&clock_model,utc,esp_timer_get_time())){network_sync_state=Q_SYNC_OK;last_network_sync=utc;if(!chart.valid)cast();render();}
+   }
+  }
+  if(!qimen_power_pending()&&network_sync_state==Q_SYNC_WAIT){
+   if(!net.connected){network_sync_state=Q_SYNC_OFFLINE;sync_requested=false;}
+   else if(esp_timer_get_time()>=sync_deadline)network_sync_state=Q_SYNC_FAILED;
+  }
   if(!qimen_power_pending()&&navigation.page!=Q_BLE&&!navigation.sleep&&!navigation.pressed&&now-navigation.last_input>60000000){navigation.sleep=true;bsp_display_backlight(10);render();}
   if(now>=next_render||connected_before!=net.connected){next_render=now+1000000;render();connected_before=net.connected;}
   if(qimen_power_poll(&clock_model,&chart,&navigation)<0){

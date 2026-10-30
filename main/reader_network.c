@@ -10,6 +10,7 @@
 #include "esp_netif.h"
 #include "esp_random.h"
 #include "esp_wifi.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -18,7 +19,9 @@
 #include <string.h>
 #include <unistd.h>
 
-static reader_network_info_t info;
+static reader_network_info_t info={.ap_clients=-1,.rssi=-127};
+static bool retry_allowed;
+static int64_t connect_deadline,next_status;
 static portMUX_TYPE info_lock=portMUX_INITIALIZER_UNLOCKED;
 static QueueHandle_t commands;
 static httpd_handle_t server;
@@ -32,7 +35,7 @@ static unsigned retries;
 static uint32_t session_token,operation_token,operation_id,next_request;
 static wifi_config_t station;
 static char pending_ssid[33],pending_password[65],expected_ssid[33];
-enum {NET_DISABLE,NET_ENABLE,NET_RETRY,NET_CONFIGURE,NET_CONNECTED,NET_FORGET,NET_PREPARE_BLE,NET_RESUME_WEB,NET_RELEASE_BLE,NET_SLEEP};
+enum {NET_DISABLE,NET_ENABLE,NET_RETRY,NET_CONFIGURE,NET_CONNECTED,NET_FORGET,NET_PREPARE_BLE,NET_RESUME_WEB,NET_RELEASE_BLE,NET_SLEEP,NET_STATUS,NET_RECONNECT};
 typedef struct {int kind;uint32_t token,request;char ssid[33],password[65];} network_work_t;
 typedef struct {uint32_t version;char ssid[33],password[64];} hotspot_config_t;
 extern const unsigned char web_start[] __asm__("_binary_device_html_start");
@@ -107,24 +110,29 @@ static bool save_credentials(const char *ssid,const char *password) {
 }
 static void clear_pending(void){pending_credentials=false;memset(pending_ssid,0,sizeof(pending_ssid));memset(pending_password,0,sizeof(pending_password));}
 static void failure(void){
-    portENTER_CRITICAL(&info_lock);info.connecting=false;info.provisioned=false;info.request_done=true;portEXIT_CRITICAL(&info_lock);
-    clear_pending();message("Connection failed; previous credentials retained");
+    portENTER_CRITICAL(&info_lock);info.connecting=false;info.connected=false;info.provisioned=false;info.request_done=true;retry_allowed=false;connect_deadline=0;strcpy(info.ip,"0.0.0.0");if(!info.last_error)info.last_error=NET_ERROR_START;portEXIT_CRITICAL(&info_lock);
+    clear_pending();if(started)(void)esp_wifi_disconnect();message("Connection failed; previous credentials retained");
 }
 static void wifi_event(void *arg,esp_event_base_t base,int32_t id,void *data){
     (void)arg;
     if(base==IP_EVENT&&id==IP_EVENT_STA_GOT_IP){
         wifi_ap_record_t associated={0};char expected[33];
-        portENTER_CRITICAL(&info_lock);bool changing=reconfiguring;memcpy(expected,expected_ssid,sizeof(expected));portEXIT_CRITICAL(&info_lock);
+        portENTER_CRITICAL(&info_lock);bool changing=reconfiguring||!retry_allowed||!info.enabled;memcpy(expected,expected_ssid,sizeof(expected));portEXIT_CRITICAL(&info_lock);
         if(esp_wifi_sta_get_ap_info(&associated)!=ESP_OK||!reader_radio_accept_address(changing,expected,associated.ssid))return;
-        ip_event_got_ip_t *event=data;network_work_t work={.kind=NET_CONNECTED};
-        portENTER_CRITICAL(&info_lock);info.connected=true;info.connecting=false;
+        ip_event_got_ip_t *event=data;if(!event)return;network_work_t work={.kind=NET_CONNECTED};
+        portENTER_CRITICAL(&info_lock);info.connected=true;info.connecting=false;info.rssi=associated.rssi;connect_deadline=0;
         snprintf(info.ip,sizeof(info.ip),IPSTR,IP2STR(&event->ip_info.ip));work.token=operation_token;work.request=operation_id;portEXIT_CRITICAL(&info_lock);
-        if(!enqueue(&work))message("Wi-Fi connected; save queue busy");
+        if(!enqueue(&work)){portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_QUEUE;portEXIT_CRITICAL(&info_lock);message("Wi-Fi connected; save queue busy");}
     }else if(base==WIFI_EVENT&&id==WIFI_EVENT_STA_DISCONNECTED){
         network_work_t work={.kind=NET_RETRY};
-        portENTER_CRITICAL(&info_lock);info.connected=false;strcpy(info.ip,"0.0.0.0");
-        bool retry=info.enabled&&!reconfiguring;work.token=operation_token;work.request=operation_id;portEXIT_CRITICAL(&info_lock);
-        if(retry&&!enqueue(&work))message("Reconnect queue busy");
+        portENTER_CRITICAL(&info_lock);bool retry=info.enabled&&!reconfiguring&&retry_allowed;
+        if(retry){if(!connect_deadline)connect_deadline=esp_timer_get_time()+30000000;info.connected=false;info.connecting=true;info.request_done=false;info.rssi=-127;info.last_error=NET_ERROR_LINK;info.disconnect_reason=data?((wifi_event_sta_disconnected_t*)data)->reason:0;strcpy(info.ip,"0.0.0.0");}
+        work.token=operation_token;work.request=operation_id;portEXIT_CRITICAL(&info_lock);
+        if(retry&&!enqueue(&work)){portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_QUEUE;info.connecting=false;info.request_done=true;portEXIT_CRITICAL(&info_lock);}
+    }else if(base==IP_EVENT&&id==IP_EVENT_STA_LOST_IP){
+        portENTER_CRITICAL(&info_lock);if(info.enabled&&retry_allowed&&!reconfiguring){info.connected=false;info.connecting=true;info.rssi=-127;info.last_error=NET_ERROR_NO_IP;strcpy(info.ip,"0.0.0.0");connect_deadline=esp_timer_get_time()+30000000;}portEXIT_CRITICAL(&info_lock);
+    }else if(base==WIFI_EVENT&&(id==WIFI_EVENT_AP_STACONNECTED||id==WIFI_EVENT_AP_STADISCONNECTED)){
+        network_work_t work={.kind=NET_STATUS};(void)enqueue(&work);
     }
 }
 static void load_station(void) {
@@ -137,6 +145,7 @@ static void load_station(void) {
     memset(&config,0,sizeof(config));station.sta.pmf_cfg.capable=true;
     portENTER_CRITICAL(&info_lock);
     memset(expected_ssid,0,sizeof(expected_ssid));memcpy(expected_ssid,station.sta.ssid,32);
+    snprintf(info.station_ssid,sizeof(info.station_ssid),"%s",expected_ssid);snprintf(info.saved_ssid,sizeof(info.saved_ssid),"%s",expected_ssid);
     portEXIT_CRITICAL(&info_lock);
 }
 
@@ -145,7 +154,7 @@ static void load_station(void) {
 static esp_err_t release_wifi(void) {
     clear_pending();
     portENTER_CRITICAL(&info_lock);
-    reconfiguring=true;info.enabled=false;info.connected=false;info.connecting=false;info.portal=false;
+    reconfiguring=true;retry_allowed=false;connect_deadline=0;info.enabled=false;info.connected=false;info.connecting=false;info.portal=false;info.ap_clients=0;info.rssi=-127;
     strcpy(info.ip,"0.0.0.0");
     portEXIT_CRITICAL(&info_lock);
     esp_err_t error=ESP_OK;
@@ -160,7 +169,7 @@ static esp_err_t release_wifi(void) {
         error=ESP_OK;started=false;
     }
     if(ip_registered) {
-        error=esp_event_handler_instance_unregister(IP_EVENT,IP_EVENT_STA_GOT_IP,ip_handler);
+        error=esp_event_handler_instance_unregister(IP_EVENT,ESP_EVENT_ANY_ID,ip_handler);
         if(error!=ESP_OK)goto done;
         ip_registered=false;
     }
@@ -208,7 +217,7 @@ static esp_err_t initialize_wifi(void) {
     error=esp_event_handler_instance_register(WIFI_EVENT,ESP_EVENT_ANY_ID,wifi_event,NULL,&wifi_handler);
     if(error!=ESP_OK)goto fail;
     wifi_registered=true;
-    error=esp_event_handler_instance_register(IP_EVENT,IP_EVENT_STA_GOT_IP,wifi_event,NULL,&ip_handler);
+    error=esp_event_handler_instance_register(IP_EVENT,ESP_EVENT_ANY_ID,wifi_event,NULL,&ip_handler);
     if(error!=ESP_OK)goto fail;
     ip_registered=true;
     return ESP_OK;
@@ -221,6 +230,7 @@ static esp_err_t configure_hotspot(const reader_network_info_t *current) {
     snprintf((char*)ap.ap.password,sizeof(ap.ap.password),"%s",current->password);
     ap.ap.ssid_len=strlen(current->ap);ap.ap.channel=1;ap.ap.max_connection=2;ap.ap.authmode=WIFI_AUTH_WPA2_PSK;
     esp_err_t error=esp_wifi_set_config(WIFI_IF_AP,&ap);
+    if(error==ESP_OK){portENTER_CRITICAL(&info_lock);info.ap_pending=strcmp(info.ap,current->ap)||strcmp(info.password,current->password);portEXIT_CRITICAL(&info_lock);}
     memset(&ap,0,sizeof(ap));return error;
 }
 static esp_err_t start_web(void) {
@@ -268,7 +278,10 @@ static esp_err_t enable_wifi(bool portal) {
     started=true;
     if(portal && (error=start_web())!=ESP_OK)goto fail;
     portENTER_CRITICAL(&info_lock);info.enabled=true;info.portal=portal;reconfiguring=false;portEXIT_CRITICAL(&info_lock);
-    if(station.sta.ssid[0]){(void)esp_wifi_connect();message("Connecting Wi-Fi...");}
+    if(station.sta.ssid[0]){
+        portENTER_CRITICAL(&info_lock);retry_allowed=true;info.connecting=true;info.request_done=false;info.last_error=NET_ERROR_NONE;info.disconnect_reason=info.retry_count=0;connect_deadline=esp_timer_get_time()+30000000;portEXIT_CRITICAL(&info_lock);
+        if(esp_wifi_connect()!=ESP_OK){failure();return ESP_FAIL;}message("Connecting Wi-Fi...");
+    }
     else message(portal?"Open 192.168.4.1 in Safari":"Waiting for phone Wi-Fi settings");
     memset(&current,0,sizeof(current));return ESP_OK;
  fail:
@@ -276,9 +289,9 @@ static esp_err_t enable_wifi(bool portal) {
 }
 static void connect_provisioned(network_work_t *work){
     if(!valid_session(work->token))return;
-    portENTER_CRITICAL(&info_lock);info.request_id=work->request;info.request_done=false;info.provisioned=false;info.connecting=true;portEXIT_CRITICAL(&info_lock);
+    portENTER_CRITICAL(&info_lock);info.request_id=work->request;info.request_done=false;info.provisioned=false;info.connecting=true;info.last_error=NET_ERROR_NONE;info.disconnect_reason=info.retry_count=0;portEXIT_CRITICAL(&info_lock);
     if(enable_wifi(false)!=ESP_OK){failure();return;}
-    portENTER_CRITICAL(&info_lock);operation_token=work->token;operation_id=work->request;memset(expected_ssid,0,sizeof(expected_ssid));strcpy(expected_ssid,work->ssid);reconfiguring=true;info.connected=false;info.connecting=true;portEXIT_CRITICAL(&info_lock);
+    portENTER_CRITICAL(&info_lock);operation_token=work->token;operation_id=work->request;memset(expected_ssid,0,sizeof(expected_ssid));strcpy(expected_ssid,work->ssid);strcpy(info.station_ssid,work->ssid);reconfiguring=true;retry_allowed=true;info.connected=false;info.connecting=true;info.last_error=NET_ERROR_NONE;info.disconnect_reason=info.retry_count=0;connect_deadline=esp_timer_get_time()+30000000;portEXIT_CRITICAL(&info_lock);
     (void)esp_wifi_disconnect();memset(&station,0,sizeof(station));
     memcpy(station.sta.ssid,work->ssid,strlen(work->ssid));memcpy(station.sta.password,work->password,strlen(work->password));station.sta.pmf_cfg.capable=true;
     retries=0;clear_pending();strcpy(pending_ssid,work->ssid);strcpy(pending_password,work->password);pending_credentials=true;
@@ -294,6 +307,20 @@ static void process_work(network_work_t *work) {
             portENTER_CRITICAL(&info_lock);sleep_success=ble_ok&&wifi_error==ESP_OK;sleep_done=true;portEXIT_CRITICAL(&info_lock);return;
         }
 
+        if(work->kind==NET_STATUS){
+            reader_network_info_t current;reader_network_info(&current);
+            if(current.portal&&started){wifi_sta_list_t list={0};int clients=esp_wifi_ap_get_sta_list(&list)==ESP_OK?list.num:-1;portENTER_CRITICAL(&info_lock);info.ap_clients=clients;portEXIT_CRITICAL(&info_lock);}
+            if(current.connected){wifi_ap_record_t ap={0};int rssi=esp_wifi_sta_get_ap_info(&ap)==ESP_OK?ap.rssi:-127;portENTER_CRITICAL(&info_lock);info.rssi=rssi;portEXIT_CRITICAL(&info_lock);}
+            portENTER_CRITICAL(&info_lock);bool expired=info.connecting&&connect_deadline&&esp_timer_get_time()>=connect_deadline;if(expired)info.last_error=NET_ERROR_TIMEOUT;portEXIT_CRITICAL(&info_lock);if(expired)failure();return;
+        }
+        if(work->kind==NET_RECONNECT){
+            portENTER_CRITICAL(&info_lock);info.request_id=work->request;info.request_done=true;info.provisioned=false;portEXIT_CRITICAL(&info_lock);
+            reader_ble_info_t ble;reader_ble_info(&ble);reader_network_credentials_t saved;
+            if(ble.initialized||ble.window||ble.stopping){portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_BUSY;portEXIT_CRITICAL(&info_lock);return;}
+            if(reader_storage_network_load(&saved)!=ESP_OK||!saved.configured){memset(&saved,0,sizeof(saved));portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_NO_SAVED;portEXIT_CRITICAL(&info_lock);return;}
+            portENTER_CRITICAL(&info_lock);snprintf(info.saved_ssid,sizeof(info.saved_ssid),"%s",saved.ssid);portEXIT_CRITICAL(&info_lock);strcpy(work->ssid,saved.ssid);strcpy(work->password,saved.password);memset(&saved,0,sizeof(saved));
+            connect_provisioned(work);clear_pending();memset(work->password,0,sizeof(work->password));return;
+        }
         if(work->kind==NET_ENABLE || work->kind==NET_RESUME_WEB) {
             reader_ble_info_t bluetooth;reader_ble_info(&bluetooth);
             if(bluetooth.window || bluetooth.initialized || bluetooth.stopping) {
@@ -302,22 +329,24 @@ static void process_work(network_work_t *work) {
             if(enable_wifi(true)!=ESP_OK)message("Wi-Fi start failed; toggle to retry");
         }
         else if(work->kind==NET_DISABLE){
-            clear_pending();portENTER_CRITICAL(&info_lock);operation_token=operation_id=0;memset(expected_ssid,0,sizeof(expected_ssid));info.enabled=false;info.connected=false;info.connecting=false;info.portal=false;info.provisioned=false;info.request_id=0;portEXIT_CRITICAL(&info_lock);
+            clear_pending();portENTER_CRITICAL(&info_lock);operation_token=operation_id=0;memset(expected_ssid,0,sizeof(expected_ssid));info.enabled=false;info.connected=false;info.connecting=false;info.portal=false;info.provisioned=false;info.request_id=0;info.request_done=false;info.last_error=NET_ERROR_NONE;info.disconnect_reason=info.retry_count=0;portEXIT_CRITICAL(&info_lock);
             message(release_wifi()==ESP_OK?"Wi-Fi off; resources released":"Wi-Fi cleanup failed; retry disabling");
         }else if(work->kind==NET_RETRY){
             reader_network_info_t current;reader_network_info(&current);
-            portENTER_CRITICAL(&info_lock);bool match=work->token==operation_token&&work->request==operation_id;portEXIT_CRITICAL(&info_lock);
+            portENTER_CRITICAL(&info_lock);bool match=work->token==operation_token&&work->request==operation_id&&retry_allowed;portEXIT_CRITICAL(&info_lock);
             if(!match||!current.enabled||!station.sta.ssid[0])return;
             if(retries++>=4){failure();return;}
-            vTaskDelay(pdMS_TO_TICKS(1000));if(esp_wifi_connect()!=ESP_OK)failure();
+            portENTER_CRITICAL(&info_lock);info.retry_count=retries;info.connecting=true;portEXIT_CRITICAL(&info_lock);
+            vTaskDelay(pdMS_TO_TICKS(1000));portENTER_CRITICAL(&info_lock);bool allowed=!sleep_requested&&retry_allowed;portEXIT_CRITICAL(&info_lock);if(allowed&&esp_wifi_connect()!=ESP_OK)failure();
         }else if(work->kind==NET_CONFIGURE)connect_provisioned(work);
         else if(work->kind==NET_CONNECTED){
             reader_network_info_t current;reader_network_info(&current);
             portENTER_CRITICAL(&info_lock);bool match=work->token==operation_token&&work->request==operation_id;portEXIT_CRITICAL(&info_lock);
             if(!match||!current.connected)return;
             retries=0;
-            if(pending_credentials){if(!save_credentials(pending_ssid,pending_password)){failure();return;}
-                portENTER_CRITICAL(&info_lock);info.provisioned=true;info.request_done=true;portEXIT_CRITICAL(&info_lock);}
+            if(pending_credentials){if(!save_credentials(pending_ssid,pending_password)){portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_SAVE;portEXIT_CRITICAL(&info_lock);failure();return;}
+                portENTER_CRITICAL(&info_lock);info.provisioned=true;info.request_done=true;snprintf(info.saved_ssid,sizeof(info.saved_ssid),"%s",pending_ssid);portEXIT_CRITICAL(&info_lock);}
+            portENTER_CRITICAL(&info_lock);info.last_error=NET_ERROR_NONE;info.disconnect_reason=info.retry_count=0;info.request_done=true;info.provisioned=info.saved_ssid[0]&&!strcmp(info.saved_ssid,info.station_ssid);portEXIT_CRITICAL(&info_lock);
             clear_pending();message("Wi-Fi connected");
         }else if(work->kind==NET_PREPARE_BLE){
             reader_network_info_t current;reader_network_info(&current);esp_err_t err=ESP_OK;
@@ -326,13 +355,13 @@ static void process_work(network_work_t *work) {
                 if(!station.sta.ssid[0])err=release_wifi();
                 else err=esp_wifi_set_mode(WIFI_MODE_STA);
             }
-            portENTER_CRITICAL(&info_lock);if(err==ESP_OK)info.portal=false;info.ble_prepare_failed=err!=ESP_OK;info.ble_ready=true;portEXIT_CRITICAL(&info_lock);message(err==ESP_OK?"Web portal paused for Bluetooth":"Could not prepare radio");
+            portENTER_CRITICAL(&info_lock);if(err==ESP_OK){info.portal=false;info.ap_clients=0;}info.ble_prepare_failed=err!=ESP_OK;info.ble_ready=true;portEXIT_CRITICAL(&info_lock);message(err==ESP_OK?"Web portal paused for Bluetooth":"Could not prepare radio");
         }else if(work->kind==NET_RELEASE_BLE){
             if(!reader_ble_shutdown())message("Bluetooth cleanup failed; retrying");
         }else if(work->kind==NET_FORGET){
             clear_pending();
             if(reader_storage_network_forget()!=ESP_OK){message("Could not clear Wi-Fi");return;}
-            memset(&station,0,sizeof(station));portENTER_CRITICAL(&info_lock);operation_token=operation_id=0;memset(expected_ssid,0,sizeof(expected_ssid));info.provisioned=false;info.connecting=false;info.request_id=0;portEXIT_CRITICAL(&info_lock);
+            memset(&station,0,sizeof(station));portENTER_CRITICAL(&info_lock);operation_token=operation_id=0;memset(expected_ssid,0,sizeof(expected_ssid));info.provisioned=false;info.connecting=false;info.request_id=0;info.station_ssid[0]=info.saved_ssid[0]=0;info.connected=false;info.rssi=-127;info.last_error=NET_ERROR_NONE;strcpy(info.ip,"0.0.0.0");retry_allowed=false;portEXIT_CRITICAL(&info_lock);
             if(initialized)(void)esp_wifi_disconnect();
             message("Saved station Wi-Fi cleared");
         }
@@ -344,15 +373,20 @@ static void worker(void *unused) {
     }
 }
 bool reader_network_set_ap(const char *ssid,const char *password){
-    if(!reader_radio_credentials(ssid,password,true))return false;
-    hotspot_config_t config={.version=1};strcpy(config.ssid,ssid);strcpy(config.password,password);
+    if(!ssid||!password)return false;
+    hotspot_config_t config={.version=1};
+    if(ssid[0]){if(strlen(ssid)>=sizeof(config.ssid))return false;strcpy(config.ssid,ssid);}
+    else {portENTER_CRITICAL(&info_lock);snprintf(config.ssid,sizeof(config.ssid),"%s",info.ap);portEXIT_CRITICAL(&info_lock);}
+        if(password[0]){if(strlen(password)>=sizeof(config.password))return false;strcpy(config.password,password);}
+    else {portENTER_CRITICAL(&info_lock);snprintf(config.password,sizeof(config.password),"%s",info.password);portEXIT_CRITICAL(&info_lock);}
+    if(!reader_radio_credentials(config.ssid,config.password,true))return false;
     nvs_handle_t nvs;esp_err_t err=nvs_open("qimen_net",NVS_READWRITE,&nvs);
     if(err==ESP_OK){err=nvs_set_blob(nvs,"ap_config",&config,sizeof(config));if(err==ESP_OK)err=nvs_commit(nvs);nvs_close(nvs);}
-    if(err==ESP_OK){portENTER_CRITICAL(&info_lock);strcpy(info.ap,ssid);strcpy(info.password,password);portEXIT_CRITICAL(&info_lock);}
+    if(err==ESP_OK){portENTER_CRITICAL(&info_lock);info.ap_pending=info.ap_pending||(info.portal&&(strcmp(info.ap,config.ssid)||strcmp(info.password,config.password)));strcpy(info.ap,config.ssid);strcpy(info.password,config.password);portEXIT_CRITICAL(&info_lock);}
     memset(&config,0,sizeof(config));return err==ESP_OK;
 }
-void reader_network_init(void){
-    strcpy(info.ap,"Qimen-Passport");snprintf(info.password,sizeof(info.password),"%08lX%04lX",(unsigned long)esp_random(),(unsigned long)(esp_random()&0xffff));
+static void load_hotspot_config(void){
+    strcpy(info.ap,"Qimen-Passport");strcpy(info.password,"12345678");
     hotspot_config_t config={0};size_t length=sizeof(config);nvs_handle_t nvs;
     if(nvs_open("qimen_net",NVS_READONLY,&nvs)==ESP_OK){
         if(nvs_get_blob(nvs,"ap_config",&config,&length)==ESP_OK&&length==sizeof(config)&&config.version==1&&
@@ -360,7 +394,10 @@ void reader_network_init(void){
             strcpy(info.ap,config.ssid);strcpy(info.password,config.password);}
         nvs_close(nvs);
     }
-    memset(&config,0,sizeof(config));snprintf(info.key,sizeof(info.key),"%08lX",(unsigned long)esp_random());strcpy(info.ip,"0.0.0.0");strcpy(info.message,"Wi-Fi off");
+    memset(&config,0,sizeof(config));
+}
+void reader_network_init(void){
+    load_hotspot_config();load_station();info.ap_clients=0;info.rssi=-127;snprintf(info.key,sizeof(info.key),"%08lX",(unsigned long)esp_random());strcpy(info.ip,"0.0.0.0");strcpy(info.message,"Wi-Fi off");
     commands=xQueueCreate(6,sizeof(network_work_t));
     if(commands&&xTaskCreate(worker,"reader_net",6144,NULL,4,&worker_task)!=pdPASS){vQueueDelete(commands);commands=NULL;}
 }
@@ -386,3 +423,11 @@ bool reader_network_sleep_request(void){
 }
 int reader_network_sleep_result(void){portENTER_CRITICAL(&info_lock);int result=!sleep_done?0:sleep_success?1:-1;portEXIT_CRITICAL(&info_lock);return result;}
 void reader_network_sleep_cancel(void){portENTER_CRITICAL(&info_lock);if(sleep_done){sleep_requested=false;sleep_done=sleep_success=false;}portEXIT_CRITICAL(&info_lock);}
+
+void reader_network_tick(int64_t now){
+ portENTER_CRITICAL(&info_lock);bool due=info.enabled&&!sleep_requested&&now>=next_status;if(due)next_status=now+2000000;portEXIT_CRITICAL(&info_lock);
+ if(due){network_work_t work={.kind=NET_STATUS};(void)enqueue(&work);}
+}
+uint32_t reader_network_reconnect(void){
+ network_work_t work={.kind=NET_RECONNECT};portENTER_CRITICAL(&info_lock);if(!info.saved_ssid[0]){portEXIT_CRITICAL(&info_lock);return 0;}if(!++next_request)++next_request;work.request=next_request;portEXIT_CRITICAL(&info_lock);return enqueue(&work)?work.request:0;
+}

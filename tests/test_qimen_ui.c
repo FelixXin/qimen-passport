@@ -81,7 +81,24 @@ int main(int argc,char **argv){assert(argc==2);output_dir=argv[1];setbuf(stdout,
  }
  printf("Cover selection: 300 physical up/down presses and deferred click/double events PASS\n");
  n.page=Q_BRIGHT;n.brightness=1;qimen_ui_render(&v);capture("brightness");
- n.page=Q_WIFI;v.network.enabled=true;strcpy(v.network.ap,"Qimen-Passport");strcpy(v.network.password,"sample123");strcpy(v.network.key,"12AB34CD");qimen_ui_render(&v);capture("wifi-active");
+ n.page=Q_WIFI;v.network.enabled=true;strcpy(v.network.ap,"Qimen-Passport");strcpy(v.network.password,"12345678");strcpy(v.network.key,"12AB34CD");qimen_ui_render(&v);capture("wifi-active");
+ for(unsigned selected=0;selected<7;selected++){
+  n.selected=selected;qimen_ui_render(&v);lv_refr_now(NULL);assert(lv_mem_test()==LV_RESULT_OK);
+  const char *names[]={"Wi-Fi 开关","设备热点","热点密码","网页管理码","浏览器打开","外部 Wi-Fi","网络校时"};
+  lv_obj_t *active=find(lv_screen_active(),names[selected]);assert(active&&!lv_obj_has_flag(lv_obj_get_parent(active),LV_OBJ_FLAG_HIDDEN));
+  assert(lv_color_eq(lv_obj_get_style_bg_color(lv_obj_get_parent(active),0),lv_color_hex(0x252621)));
+  if(selected==5)capture("wifi-scroll");
+ }
+ n.page=Q_WIFI_DETAIL;v.network.portal=true;v.network.ap_clients=2;v.network.rssi=-52;v.network.connected=true;strcpy(v.network.station_ssid,"Home-2.4G");strcpy(v.network.saved_ssid,"Home-2.4G");strcpy(v.network.ip,"192.168.1.23");
+ for(unsigned selected=1;selected<=5;selected++){n.selected=selected;qimen_ui_render(&v);char name[32];snprintf(name,sizeof(name),"wifi-detail-%u",selected);capture(name);}
+ unsigned prior=qimen_ui_updates();v.network.connected=false;v.network.connecting=true;v.network.retry_count=1;qimen_ui_render(&v);assert(qimen_ui_updates()==prior+1);capture("wifi-retrying");
+ v.network.connecting=false;v.network.last_error=NET_ERROR_LINK;v.network.disconnect_reason=202;qimen_ui_render(&v);capture("wifi-failed");
+ n.page=Q_WIFI;qimen_ui_render(&v);v.network.ap_clients=1;prior=qimen_ui_updates();qimen_ui_render(&v);assert(qimen_ui_updates()==prior+1);
+ n.page=Q_WIFI_DETAIL;n.selected=6;v.network.connected=true;
+ for(unsigned state=Q_SYNC_IDLE;state<=Q_SYNC_OFFLINE;state++){
+  v.network_sync_state=state;v.last_network_sync=state==Q_SYNC_OK?1792645200:0;qimen_ui_render(&v);char name[32];snprintf(name,sizeof(name),"network-time-%u",state);capture(name);
+ }
+ n.selected=0;
  n.page=Q_CLOCK;n.field=1;n.year=2026;n.month=10;n.day=29;n.hour=18;n.minute=40;qimen_ui_render(&v);capture("time-editor");
  n.page=Q_MENU;n.selected=1;qimen_ui_render(&v);capture("settings-focus");
  n.page=Q_CAST_TIME;n.year=1900;n.month=n.day=1;n.hour=n.minute=0;n.field=0;qimen_ui_render(&v);capture("cast-time-editor");

@@ -10,7 +10,7 @@ set(QIMEN_UI_SOURCE "${ROOT}/main/qimen_ui.c" CACHE FILEPATH "UI source for comp
 if(QIMEN_BASELINE)
  add_compile_definitions(QIMEN_BASELINE=1)
 endif()
-add_executable(preview ../test_qimen_ui.c ${QIMEN_UI_SOURCE} ${ROOT}/main/qimen_render.c ${ROOT}/main/qimen_navigation.c ${ROOT}/main/qimen_cover.c ${ROOT}/assets/images/taiji_avatar.c ${ROOT}/assets/images/taiji_light.c ${ROOT}/main/reader_qimen.c ${ROOT}/main/reader_qimen_status.c ${ROOT}/main/reader_qimen_text.c ${ROOT}/main/reader_qimen_notes.c ${ROOT}/assets/fonts/reader_font.c ${ROOT}/assets/fonts/reader_chart_font.c)
+add_executable(preview ../test_qimen_ui.c ${QIMEN_UI_SOURCE} ${ROOT}/main/reader_radio.c ${ROOT}/main/qimen_render.c ${ROOT}/main/qimen_navigation.c ${ROOT}/main/qimen_cover.c ${ROOT}/assets/images/taiji_avatar.c ${ROOT}/assets/images/taiji_light.c ${ROOT}/main/reader_qimen.c ${ROOT}/main/reader_qimen_status.c ${ROOT}/main/reader_qimen_text.c ${ROOT}/main/reader_qimen_notes.c ${ROOT}/assets/fonts/reader_font.c ${ROOT}/assets/fonts/reader_chart_font.c)
 target_include_directories(preview PRIVATE ${ROOT}/main)
 target_compile_options(preview PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(preview PRIVATE lvgl::lvgl m)

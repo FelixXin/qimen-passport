@@ -5,6 +5,7 @@
 #include "src/misc/cache/instance/lv_image_cache.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 LV_FONT_DECLARE(reader_font);
 LV_FONT_DECLARE(reader_chart_font);
 LV_IMAGE_DECLARE(taiji_avatar);
@@ -166,6 +167,24 @@ show(summary,chart&&!symbol&&(!overview||n->selected<9));show(body,!overview);sh
   lv_label_set_text(title,"奇门遁甲");lv_label_set_text(subtitle,"长按确定返回");lv_label_set_text(heading,"");lv_label_set_text(article,"");
   if(n->sleep){lv_label_set_text(title,"时钟");if(v->clock.valid)lv_label_set_text_fmt(heading,"%02u:%02u",v->clock.hour,v->clock.minute);else lv_label_set_text(heading,"--:--");if(v->clock.has_date)lv_label_set_text_fmt(article,"%04u-%02u-%02u",v->clock.year,v->clock.month,v->clock.day);lv_label_set_text(footer,"按右侧键返回");}
   else if(n->page<=Q_SYMBOL){lv_label_set_text(heading,"请先校时");lv_label_set_text(article,"长按确定打开设置\n本地设置完整日期\n或用 Wi-Fi 网页校时\n校时后确定起盘");}
+  else if(n->page==Q_WIFI_DETAIL){
+   const char *names[]={"","设备热点","热点密码","网页管理码","浏览器地址","外部 Wi-Fi","网络校时"};unsigned item=n->selected>=1&&n->selected<=6?n->selected:1;
+   lv_label_set_text(title,names[item]);lv_label_set_text(subtitle,item==5?reader_network_state_text(&v->network):"上/下滚动 · 长按确定返回");
+   lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);show(body,true);show(heading,false);show(card,false);show(article,true);lv_obj_set_pos(body,20,70);lv_obj_set_height(body,216);lv_obj_set_y(article,0);lv_label_set_recolor(article,false);
+   char text[768],clients[32],signal[40];if(v->network.connected&&v->network.rssi<=0&&v->network.rssi>=-120)snprintf(signal,sizeof(signal),"%s (%d dBm)",reader_network_signal_text(&v->network),v->network.rssi);else snprintf(signal,sizeof(signal),"未知");if(v->network.ap_clients<0)snprintf(clients,sizeof(clients),"读取中");else snprintf(clients,sizeof(clients),"%d 台",v->network.ap_clients);
+   if(item==1)snprintf(text,sizeof(text),"%s\n%s\n\n热点 %s\n已连设备 %s\n\n改名：手机网页 / 网络",v->network.ap_pending?"保存名称（待生效）":"名称",v->network.ap,v->network.portal?"已开启":v->network.enabled?"已暂停":"已关闭",clients);
+   else if(item==2)snprintf(text,sizeof(text),"%s\n%s\n\n用于手机连接设备热点。\n修改：手机网页 / 网络\n热点名和密码可以分别保存。\n重开 Wi-Fi 即生效。",v->network.ap_pending?"已保存，重开 Wi-Fi 后生效":"当前热点密码",v->network.password);
+   else if(item==3)snprintf(text,sizeof(text),"%s\n\n仅用于网页连接设备。\n与热点密码不同。\n重启后请重新查看。",v->network.key);
+   else if(item==4){snprintf(text,sizeof(text),"设备热点\nhttp://192.168.4.1\n%s\n\n局域网\n%s%s\n仅在同一网络下访问",v->network.portal?"手机先连接设备热点":"请先开启设备热点",v->network.connected?"http://":"",v->network.connected?v->network.ip:"暂无局域网地址");}
+   else if(item==5)snprintf(text,sizeof(text),"状态 %s\n网络 %s\n已存 %s\n地址 %s\n信号 %s\n重试 %u/4\n原因 %s\n\n确定：重连已保存网络\n网络连接成功才保存。\n修改：手机网页 / 网络",reader_network_state_text(&v->network),v->network.station_ssid[0]?v->network.station_ssid:"尚未配置",v->network.saved_ssid[0]?v->network.saved_ssid:"无",v->network.connected?v->network.ip:"尚未取得",signal,v->network.retry_count,reader_network_error_text(&v->network));
+   else {
+    const char *states[]={"尚未校时","正在校时","网络校时成功","校时失败，可重试","请先连接外部 Wi-Fi"};unsigned state=v->network_sync_state<=Q_SYNC_OFFLINE?v->network_sync_state:Q_SYNC_IDLE;
+    char last[64];snprintf(last,sizeof(last),"本次开机尚无记录");
+    if(v->last_network_sync){time_t local=(time_t)(v->last_network_sync+28800);struct tm t;if(gmtime_r(&local,&t))snprintf(last,sizeof(last),"%04d-%02d-%02d\n%02d:%02d:%02d",t.tm_year+1900,t.tm_mon+1,t.tm_mday,t.tm_hour,t.tm_min,t.tm_sec);}
+    snprintf(text,sizeof(text),"%s\n\n外部网络 %s\n\n最近成功\n%s\n\n确定：重新网络校时\n约等待三十秒。\n校时不替换当前盘。",states[state],v->network.connected?"已连接":"未连接",last);
+   }
+   lv_label_set_text(article,text);lv_label_set_text(footer,v->notice[0]?v->notice:item==5?"确定重连 · 长按确定返回":item==6?"确定校时 · 长按确定返回":"确定返回 · 上/下滚动");
+  }
   else if(n->page==Q_HELP){lv_label_set_text(title,"按键说明");lv_obj_set_y(article,0);lv_obj_set_y(body,70);lv_obj_set_height(body,216);lv_label_set_text(article,"上下选择宫位\n确定查看详情\n长按上下切换前后局\n双击下键切下一局\n双击确定省电休眠\n详情进入七类象义\n正文上下逐行滚动\n读完再按下翻篇\n确定回分类选择\n长按确定逐级返回\n双击上键查看封面\n按键唤醒后返回\n断电后重新校时");lv_label_set_text(subtitle,"上/下滚动 · 长按确定返回");lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);}
   else {
    show(body,false);lv_obj_set_y(subtitle,42);lv_obj_set_y(rule,64);lv_label_set_text(footer,v->notice[0]?v->notice:"长按确定返回");
@@ -178,9 +197,14 @@ show(summary,chart&&!symbol&&(!overview||n->selected<9));show(body,!overview);sh
     for(unsigned i=0;i<4&&first+i<9;i++){unsigned at=first+i;snprintf(text,sizeof(text),"%u%%",(n->brightness+1)*25);settings_row(i,items[at],at==5?text:values[at],at==n->selected,true);}
     lv_label_set_text(footer,"上/下选择 · 确定进入");
    }else if(n->page==Q_WIFI){
-    lv_label_set_text(title,"Wi-Fi 网络");lv_label_set_text(subtitle,v->network.enabled?"已开启 · 确定关闭":"未开启 · 确定开启");
-    if(v->network.enabled){settings_row(0,"设备热点",v->network.ap,false,false);settings_row(1,"热点密码",v->network.password,false,false);settings_row(2,"网页管理码",v->network.key,false,false);settings_row(3,"浏览器打开","192.168.4.1",false,false);if(v->network.connected)lv_label_set_text_fmt(footer,"网络 IP %s",v->network.ip);}
-    else {settings_row(0,"手机浏览器管理","连接热点即可使用",false,false);settings_row(1,"可设置","名称 / 图片 / 时间",false,false);settings_row(2,"外部 Wi-Fi","连接成功后保存",false,false);}
+    lv_label_set_text(title,"Wi-Fi 网络");lv_label_set_text(subtitle,v->network.enabled?"已开启 · 上/下选择":"未开启 · 上/下选择");
+    const char *items[]={"Wi-Fi 开关","设备热点","热点密码","网页管理码","浏览器打开","外部 Wi-Fi","网络校时"};
+    const char *sync_names[]={"尚未校时","正在校时","已校时","失败，可重试","未连接路由器"};
+    const char *values[]={v->network.enabled?"已开启":"已关闭",v->network.ap,v->network.password,v->network.key,"192.168.4.1",reader_network_state_text(&v->network),v->network.connected?sync_names[v->network_sync_state<=Q_SYNC_OFFLINE?v->network_sync_state:0]:"未连接路由器"};
+    unsigned first=n->selected>3?n->selected-3:0;
+    for(unsigned i=0;i<4;i++){unsigned at=first+i;settings_row(i,items[at],values[at],at==n->selected,true);}
+    const char *hints[]={"确定开关 · 长按确定返回","确定查看热点详情","确定查看密码与修改方法","确定放大查看管理码","确定查看完整地址","确定查看连接状态与操作","确定进入网络校时"};
+    lv_label_set_text(footer,hints[n->selected]);
    }else if(n->page==Q_BLE){
     lv_label_set_text(title,"蓝牙校时");lv_label_set_text(subtitle,v->bluetooth.window?"连接窗口已开启":"确定开启连接窗口");
     if(v->bluetooth.window){settings_row(0,"设备名称",v->bluetooth.name,false,false);snprintf(text,sizeof(text),"%06u",v->bluetooth.code);settings_row(1,"连接码",text,true,false);snprintf(text,sizeof(text),"%u 秒",v->bluetooth.seconds);settings_row(2,"剩余时间",text,false,false);settings_row(3,"连接状态",v->bluetooth.authenticated?"已验证":"等待手机连接",false,false);}

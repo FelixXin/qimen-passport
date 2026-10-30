@@ -64,6 +64,9 @@ extern const char *IP_EVENT;
 #define ESP_EVENT_ANY_ID -1
 #define IP_EVENT_STA_GOT_IP 2
 #define WIFI_EVENT_STA_DISCONNECTED 3
+#define IP_EVENT_STA_LOST_IP 4
+#define WIFI_EVENT_AP_STACONNECTED 5
+#define WIFI_EVENT_AP_STADISCONNECTED 6
 typedef void (*event_callback_t)(void *,esp_event_base_t,int32_t,void *);
 esp_err_t esp_event_loop_create_default(void);
 esp_err_t esp_event_handler_instance_register(esp_event_base_t,int32_t,event_callback_t,void *,esp_event_handler_instance_t *);
@@ -74,7 +77,10 @@ typedef union {
     struct {uint8_t ssid[32],password[64];struct {bool capable;} pmf_cfg;} sta;
     struct {uint8_t ssid[32],password[64];uint8_t ssid_len,channel,max_connection;int authmode;} ap;
 } wifi_config_t;
-typedef struct {uint8_t ssid[33];} wifi_ap_record_t;
+typedef struct {uint8_t ssid[33];int8_t rssi;} wifi_ap_record_t;
+typedef struct {uint8_t reason;} wifi_event_sta_disconnected_t;
+typedef struct {int num;} wifi_sta_list_t;
+esp_err_t esp_wifi_ap_get_sta_list(wifi_sta_list_t *);
 typedef struct {struct {uint32_t ip;} ip_info;} ip_event_got_ip_t;
 #define IPSTR "%u.%u.%u.%u"
 #define IP2STR(ip) ((void)(ip),1u),2u,3u,4u
